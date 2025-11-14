@@ -1,0 +1,88 @@
+@import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap");
+
+@theme {
+  /* Define your custom colors */
+  --color-background: #f6ede2;
+  --color-foreground: #2d3a45;
+  --color-primary: #b3473b;
+  --color-secondary: #e6c073;
+  --color-softBg: #f9f5ef;
+  --color-primaryBG: #efe7dc;
+  --color-next: #c8a96a;
+  --color-inputbg: #fff8ed;
+  --font-family-sans: "Inter", ui-sans-serif, system-ui, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+/* Apply Inter font globally */
+* {
+  font-family: var(--font-family-sans);
+}
+
+@layer components {
+  .paddings {
+    @apply px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto  w-full;
+  }
+
+  .roboto-headline-responsive {
+    font-family: var(--font-family-roboto);
+    font-weight: 700;
+    font-style: normal;
+    font-size: clamp(32px, 8vw, 64px);
+    line-height: 100%;
+    letter-spacing: 0;
+  }
+}
+
+/* Add this to your existing CSS file */
+
+@layer utilities {
+  .text-gradient {
+    background: linear-gradient(135deg, #c8965f, #d4a574, #e0b589, #b8956b);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    display: inline-block; /* Ensures gradient works properly */
+  }
+
+  /* Alternative version with your brand colors */
+  .text-gradient-brand {
+    background: linear-gradient(135deg, #b3473b, #e6c073);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    display: inline-block;
+  }
+
+  /* Animated version (optional) */
+  .text-gradient-animated {
+    background: linear-gradient(
+      135deg,
+      #c8965f,
+      #d4a574,
+      #e0b589,
+      #b8956b,
+      #c8965f
+    );
+    background-size: 200% 200%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    display: inline-block;
+    animation: gradient-shift 3s ease-in-out infinite;
+  }
+}
+
+@keyframes gradient-shift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}

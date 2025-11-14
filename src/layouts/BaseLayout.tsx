@@ -1,0 +1,23 @@
+import Footer from "../components/base/Footer";
+import Navbar from "../components/base/Navbar";
+
+interface BaseLayoutProps {
+  children: React.ReactNode;
+}
+
+const BaseLayout = ({ children }: BaseLayoutProps) => {
+  return (
+    <div className="flex flex-col min-h-screen  bg-background text-foreground">
+      {/* Navbar */}
+      <Navbar />
+
+      {/* Page content */}
+      <main className="flex-1  paddings overflow-hidden">{children}</main>
+
+      {/* Footer */}
+      <Footer />
+    </div>
+  );
+};
+
+export default BaseLayout;
