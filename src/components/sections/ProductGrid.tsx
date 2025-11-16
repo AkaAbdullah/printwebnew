@@ -23,7 +23,7 @@ const ProductGrid = ({ products, fallbackText }: ProductGridProps) => {
 
   const handleSelect = (item: Product) => {
     dispatch(setSelectedProduct(item));
-    navigate(`/customization/select-character`);
+    navigate("/customization/select-template");
   };
 
   return (

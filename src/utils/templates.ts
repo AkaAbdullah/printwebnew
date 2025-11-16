@@ -11,6 +11,14 @@ export type Template = {
 
 export const templateList: Template[] = [
   {
+    id: 10,
+    key: "1char",
+    titles: ["girl"],
+    template: svgData.testTemplate,
+    image: svgData.testTemplate,
+    noOfCharactersInTemplate: 1,
+  },
+  {
     id: 1,
     key: "4char",
     titles: ["girl", "boy", "dog", "child"],
@@ -66,39 +74,7 @@ export const templateList: Template[] = [
     image: svgData.FourcharacterTemplate7,
     noOfCharactersInTemplate: 4,
   },
-  {
-    id: 8,
-    key: "4char",
-    titles: ["girl", "boy", "dog", "child"],
-    template: svgData.FourcharacterTemplate8,
-    image: svgData.FourcharacterTemplate8,
-    noOfCharactersInTemplate: 4,
-  },
-  {
-    id: 9,
-    key: "4char",
-    titles: ["girl", "boy", "dog", "child"],
-    template: svgData.FourcharacterTemplate9,
-    image: svgData.FourcharacterTemplate9,
-    noOfCharactersInTemplate: 4,
-  },
 
-  {
-    id: 11,
-    key: "3char",
-    titles: ["girl", "boy", "child"],
-    template: svgData.FourcharacterTemplate9,
-    image: svgData.FourcharacterTemplate9,
-    noOfCharactersInTemplate: 3,
-  },
-  {
-    id: 12,
-    key: "3char",
-    titles: ["girl", "boy", "child"],
-    template: svgData.FourcharacterTemplate9,
-    image: svgData.FourcharacterTemplate9,
-    noOfCharactersInTemplate: 3,
-  },
   {
     id: 13,
     key: "3char",
@@ -106,14 +82,5 @@ export const templateList: Template[] = [
     template: svgData.FourcharacterTemplate9,
     image: svgData.FourcharacterTemplate9,
     noOfCharactersInTemplate: 3,
-  },
-
-  {
-    id: 10,
-    key: "1char",
-    titles: ["girl"],
-    template: svgData.testTemplate,
-    image: svgData.testTemplate,
-    noOfCharactersInTemplate: 1,
   },
 ];

@@ -20,18 +20,19 @@ export const charactersList: CharacterData[] = [
     id: 2,
     title: "boy",
     png: mediaData.newMale,
-    metaData: "adult male character",
+    metaData: " male character",
   },
   {
-    id: 3,
+    id:3,
+    title: "child",
+    png: mediaData.newChidl1,
+    metaData: "female child character",
+  },
+  {
+    id: 4,
     title: "child",
     png: mediaData.newChild2,
     metaData: "male child character",
   },
-  {
-    id: 4,
-    title: "dog",
-    png: mediaData.dogPng,
-    metaData: "pet dog character",
-  },
+  
 ];

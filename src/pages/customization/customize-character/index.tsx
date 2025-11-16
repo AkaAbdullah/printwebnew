@@ -1,5 +1,5 @@
 // pages/CustomizationPage.tsx
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import BackButton from "../../../components/base/BackButton";
 import Tabs from "../../../components/base/Tabs";
@@ -13,8 +13,13 @@ import {
   setJeans,
   setCharacterVisible,
 } from "../../../store/slices/customizationSlice";
-import { updateCharacterImage as updateSelectedCharacterImage } from "../../../store/slices/characterSlice";
+import {
+  setGeneratedCharacterImage,
+  removeGeneratedCharacterImage,
+  updateCharacterImage,
+} from "../../../store/slices/characterSlice";
 import type { RootState } from "../../../store";
+import type { SelectedCharacter } from "../../../store/slices/characterSlice";
 import {
   characterHairs,
   characterHeads,
@@ -26,54 +31,10 @@ import OnboardingTooltip from "../../../components/base/OnboardingToolTip";
 // templateList not needed here; customized canvas uses selectedCharacters and customizations
 import { useNavigate } from "react-router";
 import { compressBlobToWebp, compressImageUrlsToWebp } from "../../../utils/imageUtils";
-import CanvasEditor from "../../../components/base/CanvasEditor";
+import { setCombinedTemplate } from "../../../store/slices/templateSlice";
+import html2canvas from "html2canvas";
+import CanvasEditor, { type CanvasEditorRef } from "../../../components/base/CanvasEditor";
 
-const colors = [
-  // Row 1
-  "#0096FF", // Cyan blue
-  "#FF8C00", // Orange
-  "#E236D6", // Magenta
-  "#E5A0B4", // Light pink
-  "#2D2D4F", // Dark navy
-  "#4B2E83", // Deep purple
-  "#7B4FA8", // Purple
-  "#A460FF", // Lavender
-  "#C7B8E7", // Light lavender
-  "#0033CC", // Royal blue
-  "#2F5D8B", // Teal blue
-  "#0096FF", // Cyan blue (again)
-
-  // Row 2
-  "#78A8D6", // Light blue
-  "#008B8B", // Turquoise
-  "#5BC9D8", // Cyan teal
-  "#004B36", // Dark green
-  "#36FF8C", // Bright green
-  "#008B45", // Forest green
-  "#6B9B6B", // Olive green
-  "#D4D46B", // Yellow-green
-  "#B89B00", // Mustard yellow
-  "#FFFF00", // Yellow
-  "#F5F5DC", // Beige
-  "#FF8C00", // Orange (again)
-
-  // Row 3
-  "#FF4500", // Red-orange
-  "#FF69B4", // Pink
-  "#DC143C", // Crimson red
-  "#E5A0B4", // Light pink (again)
-  "#8B0000", // Dark red
-  "#5C0000", // Burgundy
-  "#8B4513", // Brown
-  "#654321", // Dark brown
-  "#4B0000", // Deep maroon
-  "#FFFFFF", // White
-  "#C0C0C0", // Light gray
-
-  // Bottom row
-  "#2D2D2D", // Dark gray
-  "#000000", // Black
-];
 
 const blobToDataUrl = (blob: Blob) =>
   new Promise<string>((resolve, reject) => {
@@ -84,12 +45,26 @@ const blobToDataUrl = (blob: Blob) =>
     reader.readAsDataURL(blob);
   });
 
+type ReviewModalData = {
+  file: File | null;
+  preview: string | null;
+  usedFallback: boolean;
+};
+
+const customizationSections = [
+  { key: "head", label: "Head" },
+  { key: "hair", label: "Hair" },
+  { key: "shirt", label: "Shirt" },
+  { key: "jeans", label: "Jeans" },
+] as const;
+
 const CustomizationPage = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { selectedCharacters } = useSelector(
+  const { selectedCharacters, generatedImages } = useSelector(
     (state: RootState) => state.character
   );
+  const { selectedProduct } = useSelector((state: RootState) => state.product);
   const { selectedTemplate } = useSelector(
     (state: RootState) => state.template
   );
@@ -100,9 +75,6 @@ const CustomizationPage = () => {
   const [activeTab, setActiveTab] = useState<
     "Character" | "Hair" | "Shirt" | "jeans"
   >("Hair");
-  const [colorTarget, setColorTarget] = useState<
-    "head" | "hair" | "shirt" | "jeans" | null
-  >(null);
 
   const selectedCharacterId =
     activeCharacterId ?? selectedCharacters[0]?.id ?? null;
@@ -133,7 +105,7 @@ const CustomizationPage = () => {
     }
   };
 
-  const handleCharacterClick = (item: any) => {
+  const handleCharacterClick = (item: SelectedCharacter) => {
     // Always set the clicked character as active and make sure it is visible on the canvas.
     dispatch(setActiveCharacter(item));
     const isVisible = customizations[item.id]?.visibleOnCanvas;
@@ -143,6 +115,18 @@ const CustomizationPage = () => {
   };
 
   useEffect(() => {
+    if (!selectedProduct) {
+      navigate("/customization");
+      return;
+    }
+    if (!selectedTemplate) {
+      navigate("/customization/select-template");
+      return;
+    }
+    if (selectedCharacters.length === 0) {
+      navigate("/customization/select-character");
+      return;
+    }
     if (selectedCharacters.length > 0) {
       const first = selectedCharacters[0];
       if (!activeCharacterId) {
@@ -153,7 +137,15 @@ const CustomizationPage = () => {
         dispatch(setCharacterVisible({ id: first.id, visible: true }));
       }
     }
-  }, [selectedCharacters, activeCharacterId, customizations, dispatch]);
+  }, [
+    selectedCharacters,
+    activeCharacterId,
+    customizations,
+    dispatch,
+    selectedProduct,
+    selectedTemplate,
+    navigate,
+  ]);
 
   const handleOptionSelect = (id: number) => {
     const style = `${activeTab.toLowerCase()}-${id}`;
@@ -173,7 +165,6 @@ const CustomizationPage = () => {
             ),
           })
         );
-        setColorTarget("head");
         break;
       case "Hair":
         imageUrl =
@@ -188,7 +179,6 @@ const CustomizationPage = () => {
             ),
           })
         );
-        setColorTarget("hair");
         break;
       case "Shirt":
         imageUrl =
@@ -203,7 +193,6 @@ const CustomizationPage = () => {
             ),
           })
         );
-        setColorTarget("shirt");
         break;
       case "jeans":
         imageUrl =
@@ -218,48 +207,18 @@ const CustomizationPage = () => {
             ),
           })
         );
-        setColorTarget("jeans");
         break;
     }
   };
 
-  const handleColorSelect = (color: string) => {
-    if (!colorTarget || !selectedCharacterId) return;
-
-    switch (colorTarget) {
-      case "head":
-        dispatch(
-          setHead({
-            color,
-            metaData: describeCustomization("head", color),
-          })
-        );
-        break;
-      case "hair":
-        dispatch(
-          setHair({
-            color,
-            metaData: describeCustomization("hair", color),
-          })
-        );
-        break;
-      case "shirt":
-        dispatch(
-          setShirt({
-            color,
-            metaData: describeCustomization("shirt", color),
-          })
-        );
-        break;
-      case "jeans":
-        dispatch(
-          setJeans({
-            color,
-            metaData: describeCustomization("jeans", color),
-          })
-        );
-        break;
+  const handleVisibilityToggle = (character: SelectedCharacter) => {
+    const isVisible = customizations[character.id]?.visibleOnCanvas ?? false;
+    if (!customizations[character.id]) {
+      dispatch(setActiveCharacter(character));
     }
+    dispatch(
+      setCharacterVisible({ id: character.id, visible: !isVisible })
+    );
   };
 
   const getSelectedId = (style: string | null | undefined): number | null => {
@@ -271,6 +230,11 @@ const CustomizationPage = () => {
   const [showTooltip, setShowTooltip] = useState(false);
   const [showTooltip2, setShowTooltip2] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const canvasEditorRef = useRef<CanvasEditorRef | null>(null);
+  const canvasContainerRef = useRef<HTMLDivElement | null>(null);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewModalData, setReviewModalData] =
+    useState<ReviewModalData | null>(null);
 
   useEffect(() => {
     const hasSeenOnboarding =
@@ -290,9 +254,118 @@ const CustomizationPage = () => {
     setShowTooltip2(true);
   }
 
-  function handleNextPage() {
+  async function handleNextPage() {
+    if (!selectedCharacters?.length) {
+      navigate("/customization/background-customization");
+      return;
+    }
+    const primaryId = activeCharacterId ?? selectedCharacters[0]?.id;
+    const primary = selectedCharacters.find((c) => c.id === primaryId);
+    if (!primary) {
+      navigate("/customization/background-customization");
+      return;
+    }
+
+    // If there's an existing generated image for the primary character, just navigate
+    if (generatedImages?.[primary.id]) {
+      navigate("/customization/background-customization");
+      return;
+    }
+
+    // Try to export from Konva stage first (hiding transformer), fallback to DOM capture
+    let dataUrl: string | null = null;
+    try {
+      dataUrl = await canvasEditorRef.current?.exportAsDataURL(2, true) ?? null;
+    } catch (err) {
+      console.warn("Konva export failed on Next:", err);
+    }
+
+    if (!dataUrl && canvasEditorRef.current && canvasContainerRef?.current) {
+      try {
+        // CanvasEditor provides exportDomSnapshot that will hide transformer during capture
+        dataUrl = await canvasEditorRef.current.exportDomSnapshot(canvasContainerRef.current, 2, true);
+      } catch (err) {
+        console.warn("exportDomSnapshot failed on Next:", err);
+      }
+    }
+
+    if (dataUrl) {
+      dispatch(setCombinedTemplate(dataUrl));
+    }
+    dispatch(setCharacterVisible({ id: primary.id, visible: true }));
+    dispatch(setActiveCharacter(primary));
+
     navigate("/customization/background-customization");
   }
+
+  const captureCanvasSnapshot = async (): Promise<{
+    file: File;
+    dataUrl: string;
+  } | null> => {
+    if (!canvasContainerRef?.current) return null;
+    try {
+      let dataUrl: string | null = null;
+      try {
+        dataUrl =
+          (await canvasEditorRef.current?.exportDomSnapshot(
+            canvasContainerRef.current,
+            2,
+            true
+          )) ?? null;
+      } catch (err) {
+        console.warn("exportDomSnapshot failed, trying stage export", err);
+      }
+      if (!dataUrl) {
+        try {
+          dataUrl =
+            canvasEditorRef.current?.exportAsDataURL(2, true) ?? null;
+        } catch (err) {
+          console.warn("exportAsDataURL failed, falling back to html2canvas", err);
+        }
+      }
+      let blob: Blob | null = null;
+      if (dataUrl) {
+        const res = await fetch(dataUrl);
+        blob = await res.blob();
+      } else {
+        const canvasSnapshot = await html2canvas(canvasContainerRef.current, {
+          backgroundColor: null,
+          useCORS: true,
+          scale: 2,
+        });
+        blob = await new Promise<Blob | null>((resolve) =>
+          canvasSnapshot.toBlob(resolve, "image/png")
+        );
+        if (blob) {
+          dataUrl = await blobToDataUrl(blob);
+        }
+      }
+      if (!blob || !dataUrl) return null;
+
+      let compressedFile: File | null = null;
+      try {
+        compressedFile = await compressBlobToWebp(blob, `canvas-snapshot.png`, {
+          maxSizeMB: 0.25,
+          maxWidthOrHeight: 1920,
+          initialQuality: 0.45,
+          useWebWorker: true,
+        });
+      } catch (error) {
+        compressedFile = new File([blob], `canvas-snapshot.png`, {
+          type: blob.type,
+        });
+        console.warn(
+          "Canvas compression failed, using original blob as file:",
+          error
+        );
+      }
+      if (!compressedFile) return null;
+      return { file: compressedFile, dataUrl };
+    } catch (error) {
+      console.warn("Canvas snapshot failed:", error);
+      return null;
+    }
+  };
 
   const handleGenerate = async () => {
     if (!selectedCharacters.length) {
@@ -305,7 +378,28 @@ const CustomizationPage = () => {
       return;
     }
 
+    const snapshot = await captureCanvasSnapshot();
+    if (!snapshot && !selectedTemplate?.image) {
+      console.warn(
+        "Unable to capture canvas snapshot and no template fallback is available."
+      );
+      return;
+    }
+
+    setReviewModalData({
+      file: snapshot?.file ?? null,
+      preview: snapshot?.dataUrl ?? selectedTemplate?.image ?? null,
+      usedFallback: !snapshot,
+    });
+    setShowReviewModal(true);
+  };
+
+  const runCharacterGeneration = async (
+    review?: ReviewModalData | null
+  ) => {
+    if (!selectedTemplate) return;
     setIsGenerating(true);
+    setShowReviewModal(false);
     const primaryCharacter =
       selectedCharacters.find((char) => char.id === selectedCharacterId) ??
       selectedCharacters[0];
@@ -451,11 +545,10 @@ const CustomizationPage = () => {
     };
 
     // Build the list to precompress
-    const uniqueCompressList: Array<{ imageUrl: string; filename: string }> = [];
-    // primary
+  const uniqueCompressList: Array<{ imageUrl: string; filename: string }> = [];
+  // primary
     uniqueCompressList.push({ imageUrl: primaryCharacter.png, filename: `character-${primaryCharacter.id}-base.png` });
-    // reference template
-    uniqueCompressList.push({ imageUrl: selectedTemplate?.image ?? "", filename: "selected-template.png" });
+  // no longer include selected template; we will use canvasSnapshotFile as the reference image instead
     for (let i = 0; i < entriesToUse.length; i++) {
       const entry = entriesToUse[i];
       uniqueCompressList.push({ imageUrl: entry.baseImageUrl, filename: `character-${entry.character.id}-base.png` });
@@ -465,7 +558,7 @@ const CustomizationPage = () => {
       }
     }
 
-    // remove falsy and dedupe by imageUrl
+  // remove falsy and dedupe by imageUrl
     const deduped = Array.from(new Map(uniqueCompressList.filter(i => i.imageUrl).map(i => [i.imageUrl, i])).values());
     const precompressedMap = await precompressImages(deduped);
 
@@ -491,12 +584,56 @@ const CustomizationPage = () => {
       true
     );
 
-    await appendFromMapOrFetch(
-      "referenceImage",
-      selectedTemplate?.image,
-      "selected-template.png",
-      true
-    );
+    let referenceFile = review?.file ?? null;
+    let referencePreview = review?.preview ?? null;
+    if (!referenceFile) {
+      const fallbackSnapshot = await captureCanvasSnapshot();
+      referenceFile = fallbackSnapshot?.file ?? null;
+      referencePreview = fallbackSnapshot?.dataUrl ?? referencePreview;
+    }
+
+    if (referenceFile) {
+      formData.append("referenceImage", referenceFile, referenceFile.name);
+      console.log("🖼️ Reference snapshot being sent to API:", {
+        name: referenceFile.name,
+        size: `${(referenceFile.size / 1024).toFixed(2)} KB`,
+        type: referenceFile.type,
+        preview: referencePreview ?? "N/A",
+        usedFallback: !review?.file,
+      });
+      if (import.meta.env.DEV) {
+        let downloadHref = referencePreview;
+        let tempObjectUrl: string | null = null;
+        if (!downloadHref) {
+          tempObjectUrl = URL.createObjectURL(referenceFile);
+          downloadHref = tempObjectUrl;
+        }
+        if (downloadHref) {
+          const downloadLink = document.createElement("a");
+          downloadLink.href = downloadHref;
+          downloadLink.download =
+            referenceFile.name || "reference-image-preview.png";
+          downloadLink.style.display = "none";
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          document.body.removeChild(downloadLink);
+        }
+        if (tempObjectUrl) {
+          const urlToRevoke = tempObjectUrl;
+          setTimeout(() => URL.revokeObjectURL(urlToRevoke), 5000);
+        }
+      }
+    } else {
+      console.warn(
+        "Falling back to selected template for reference image because snapshot could not be captured."
+      );
+      await appendFromMapOrFetch(
+        "referenceImage",
+        selectedTemplate?.image,
+        "selected-template.png",
+        true
+      );
+    }
 
     for (let i = 0; i < entriesToUse.length; i++) {
       const entry = entriesToUse[i];
@@ -550,7 +687,7 @@ const CustomizationPage = () => {
         throw new Error(`HTTP ${response.status}: ${text}`);
       }
 
-  const blob = await response.blob();
+    const blob = await response.blob();
   const dataUrl = await blobToDataUrl(blob);
   const downloadUrl = URL.createObjectURL(blob);
 
@@ -566,15 +703,21 @@ const CustomizationPage = () => {
       URL.revokeObjectURL(downloadUrl);
 
       if (primaryCharacter) {
-        const updatedCharacter = { ...primaryCharacter, png: dataUrl };
+        // store API result image in the generatedImages map instead of overwriting original
         dispatch(
-          updateSelectedCharacterImage({
-            id: updatedCharacter.id,
+          setGeneratedCharacterImage({
+            id: primaryCharacter.id,
             png: dataUrl,
           })
         );
-        dispatch(setActiveCharacter(updatedCharacter));
+        // ensure the generated character is visible on the canvas and set active so the user
+        // can manipulate it on the background page
+        dispatch(setCharacterVisible({ id: primaryCharacter.id, visible: true }));
+        dispatch(setActiveCharacter(primaryCharacter));
+        dispatch(setCombinedTemplate(dataUrl));
       }
+
+      navigate("/customization/background-customization");
 
       console.log("✅ Character updated with new image");
     } catch (error) {
@@ -582,6 +725,18 @@ const CustomizationPage = () => {
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const handleReviewConfirm = async () => {
+    if (!reviewModalData) return;
+    setShowReviewModal(false);
+    await runCharacterGeneration(reviewModalData);
+    setReviewModalData(null);
+  };
+
+  const handleReviewCancel = () => {
+    setShowReviewModal(false);
+    setReviewModalData(null);
   };
 
   return (
@@ -601,12 +756,12 @@ const CustomizationPage = () => {
             </div>
           </div>
         )}
-        <div className="w-full lg:w-1/2 flex flex-col items-center gap-6 justify-center p-6 rounded-xl">
+  <div className="w-full lg:w-1/2 flex flex-col items-center gap-6 justify-center p-6 rounded-xl relative">
           {/* canvas editor preview */}
 
-          <div className="w-full">
+          <div ref={canvasContainerRef} className="w-full">
             {/* Canvas reduced by 30% height (default 600 -> 420) */}
-            <CanvasEditor height={420} />
+            <CanvasEditor ref={canvasEditorRef} height={420} />
           </div>
           {/* Selected template preview shown below the canvas */}
           {selectedTemplate && (
@@ -615,7 +770,7 @@ const CustomizationPage = () => {
                 <img
                   src={selectedTemplate.image}
                   alt={selectedTemplate.key || "template"}
-                  className="object-cover w-full h-full"
+                  className=" w-full h-full object-contain "
                 />
                 <div className="absolute top-2 left-2 bg-white/80 px-3 py-1 rounded-md text-xs font-medium text-gray-700">
                   Selected Template
@@ -623,30 +778,82 @@ const CustomizationPage = () => {
               </div>
             </div>
           )}
+          {/* If there is a generated image for the active character show Accept/Reject */}
+          {selectedCharacterId && generatedImages?.[selectedCharacterId] && (
+            <div className="absolute top-4 right-6 z-50 flex gap-2 items-center">
+              <button
+                type="button"
+                onClick={() => {
+                  const gen = generatedImages[selectedCharacterId];
+                  if (!gen) return;
+                  // apply generated image to the selected character (accept)
+                  dispatch(updateCharacterImage({ id: selectedCharacterId, png: gen }));
+                  // remove generated override
+                  dispatch(removeGeneratedCharacterImage(selectedCharacterId));
+                }}
+                className="px-3 py-1 bg-emerald-500 text-white rounded-md shadow-sm hover:bg-emerald-600"
+              >
+                Accept
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  // reject generated image
+                  dispatch(removeGeneratedCharacterImage(selectedCharacterId));
+                }}
+                className="px-3 py-1 bg-rose-500 text-white rounded-md shadow-sm hover:bg-rose-600"
+              >
+                Reject
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="flex-1 flex flex-col items-center gap-6">
-          {/* selected template shown above canvas on the left side */}
           <div className="flex gap-4 flex-wrap justify-center">
             {selectedCharacters.map((item) => {
               const isSelected = selectedCharacterId === item.id;
-              const isVisible = customizations[item.id]?.visibleOnCanvas;
+              const isVisible = customizations[item.id]?.visibleOnCanvas ?? false;
               return (
                 <div
                   key={item.id}
                   className={`cursor-pointer transition-all rounded-lg duration-200 ${
                     isSelected
-                      ? "opacity-100 scale-105 ring-2 ring-secondary"
+                      ? "opacity-100 scale-105"
                       : "opacity-60"
-                  } ${isVisible ? "ring-2 ring-next" : ""}`}
+                  } ${
+                    isVisible
+                      ? "ring-2 ring-next"
+                      : "ring-2 ring-dashed ring-gray-300"
+                  }`}
                   onClick={() => handleCharacterClick(item)}
                 >
-                  <div className="h-20 w-24 p-2 overflow-hidden border border-secondary rounded-lg flex items-center justify-center bg-primaryBG">
+                  <div className="relative h-20 w-24 p-2 overflow-hidden border border-secondary rounded-lg flex items-center justify-center bg-primaryBG">
                     <img
                       src={item.png}
                       alt={item.title}
                       className="object-cover h-20"
                     />
+                    {generatedImages?.[item.id] && (
+                      <div className="absolute top-1 right-1 bg-yellow-400 text-xs text-black rounded-full w-6 h-6 flex items-center justify-center font-semibold shadow">
+                        G
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleVisibilityToggle(item);
+                      }}
+                      className="absolute top-1 left-1 text-[10px] px-2 py-0.5 rounded-full bg-white/80 text-gray-700 shadow"
+                    >
+                      {isVisible ? "Hide" : "Show"}
+                    </button>
+                    {!isVisible && (
+                      <div className="absolute inset-0 bg-white/80 text-[10px] font-semibold text-gray-600 flex items-center justify-center">
+                        Hidden
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -660,7 +867,6 @@ const CustomizationPage = () => {
                 activeTab={activeTab}
                 onChange={(tab) => {
                   setActiveTab(tab as "Character" | "Hair" | "Shirt" | "jeans");
-                  setColorTarget(null);
                 }}
               />
             </div>
@@ -710,9 +916,8 @@ const CustomizationPage = () => {
             )}
           </div>
 
-          {colorTarget && !isDog && (
+          {/* {colorTarget && !isDog && (
             <div className="w-full mt-0 flex items-center justify-center  p-4">
-              {/* <h3 className="text-sm font-medium mb-3">Choose Color</h3> */}
               <div className="flex gap-2 flex-wrap">
                 {colors.map((color, index) => {
                   const currentColor =
@@ -741,7 +946,7 @@ const CustomizationPage = () => {
                 })}
               </div>
             </div>
-          )}
+          )} */}
 
           <div className="flex justify-end w-full mr-16 gap-4">
             <button
@@ -751,10 +956,130 @@ const CustomizationPage = () => {
             >
               {isGenerating ? "Generating..." : "Generate"}
             </button>
-            <CustomizationButtons />
+            <CustomizationButtons onNext={handleNextPage} />
           </div>
         </div>
       </section>
+
+      {showReviewModal && reviewModalData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full p-6 space-y-6 overflow-hidden">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-semibold">Review & Confirm</h2>
+              <button
+                type="button"
+                className="text-sm text-gray-500 hover:text-gray-700"
+                onClick={handleReviewCancel}
+              >
+                Close
+              </button>
+            </div>
+            <div className="flex flex-col lg:flex-row gap-6">
+              <div className="lg:w-1/2 bg-softBg rounded-xl p-4 flex items-center justify-center">
+                {reviewModalData.preview ? (
+                  <img
+                    src={reviewModalData.preview}
+                    alt="Canvas snapshot preview"
+                    className="max-h-[360px] object-contain rounded-lg shadow-inner"
+                  />
+                ) : (
+                  <p className="text-center text-gray-500">
+                    No snapshot preview available.
+                  </p>
+                )}
+              </div>
+              <div className="flex-1 space-y-4 max-h-[360px] overflow-y-auto pr-2">
+                {selectedCharacters.map((character) => {
+                  const cust = customizations[character.id];
+                  const sectionEntries = customizationSections.map((section) => {
+                    const data = cust?.[section.key];
+                    return { ...section, data };
+                  });
+                  return (
+                    <div
+                      key={character.id}
+                      className="border border-gray-200 rounded-xl p-4 space-y-3"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold">
+                            {character.name || character.title}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Canvas: {cust?.visibleOnCanvas ? "Visible" : "Hidden"}
+                          </p>
+                        </div>
+                        <img
+                          src={character.png}
+                          alt={character.title}
+                          className="w-12 h-12 object-contain"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        {sectionEntries.map(({ key, label, data }) => (
+                          <div
+                            key={key}
+                            className="flex items-center justify-between text-xs bg-gray-50 rounded-lg px-3 py-2"
+                          >
+                            <div className="font-semibold text-gray-700">
+                              {label}
+                            </div>
+                            <div className="flex items-center gap-2 text-gray-600">
+                              {data?.imageUrl && (
+                                <img
+                                  src={data.imageUrl}
+                                  alt={`${label} preview`}
+                                  className="w-8 h-8 object-contain rounded-md border"
+                                />
+                              )}
+                              <span>
+                                {data?.style ?? "Default"}
+                              </span>
+                              {data?.color && (
+                                <span
+                                  className="inline-flex items-center gap-1 text-[10px]"
+                                >
+                                  <span
+                                    className="w-3 h-3 rounded-full border border-gray-300"
+                                    style={{ backgroundColor: data.color }}
+                                  />
+                                  {data.color}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            {reviewModalData.usedFallback && (
+              <p className="text-xs text-amber-600">
+                Snapshot fallback was used because the live canvas could not be captured.
+              </p>
+            )}
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+                onClick={handleReviewCancel}
+              >
+                Keep Editing
+              </button>
+              <button
+                type="button"
+                className="px-5 py-2 rounded-lg bg-secondary text-white hover:bg-secondary/80 disabled:opacity-50"
+                onClick={handleReviewConfirm}
+                disabled={isGenerating}
+              >
+                {isGenerating ? "Processing..." : "Confirm & Generate"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showTooltip && (
         <OnboardingTooltip

@@ -23,32 +23,52 @@ export default function Index() {
   const { selectedProduct } = useSelector((state: RootState) => state.product);
   const { productInfo } = useSelector((state: RootState) => state.checkout);
 
-  const { combinedTemplate } = useSelector(
+  const { combinedTemplate, background, finalComposedTemplate } = useSelector(
     (state: RootState) => state.template
   );
+  const overlayImage = finalComposedTemplate ?? combinedTemplate ?? null;
 
   const [sideImages, setSideImages] = useState<string[]>([]);
   const [activeImage, setActiveImage] = useState<string | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
   console.log(sideImages);
   useEffect(() => {
-    if (!selectedProduct?.image) return;
-
-    const baseImage = selectedProduct.image;
+    if (!selectedProduct) {
+      navigate("/customization");
+    }
+  }, [selectedProduct, navigate]);
+  useEffect(() => {
+    const baseImage = selectedProduct?.image ?? productInfo?.productImage ?? null;
     const modelImage = mediaData.girlTshirt;
-
     setSideImages((prev) => {
-      const newImages = [...prev];
-      if (!newImages.includes(baseImage)) newImages.push(baseImage);
-      if (!newImages.includes(modelImage)) newImages.push(modelImage);
-      return newImages;
+      const initial = [baseImage, modelImage].filter(
+        (img): img is string => Boolean(img)
+      );
+      const extras = prev.filter((img) => !initial.includes(img));
+      return [...initial, ...extras];
     });
-
-    setActiveImage(baseImage);
-  }, [selectedProduct?.image]);
+    if (baseImage) {
+      setActiveImage(baseImage);
+    }
+  }, [selectedProduct?.image, productInfo?.productImage]);
 
   useEffect(() => {
-    if (!previewRef.current || !combinedTemplate) return;
+    if (overlayImage) {
+      dispatch(updateProductName(selectedProduct?.name));
+      dispatch(
+        updateProductPrice({
+          currentPrice: selectedProduct?.price.currentPrice,
+          discount: selectedProduct?.price.discount,
+        })
+      );
+      setSideImages((prev) =>
+        prev.includes(overlayImage) ? prev : [...prev, overlayImage]
+      );
+      return;
+    }
+
+    if (!previewRef.current) return;
 
     const capturePreview = async () => {
       const node = previewRef.current;
@@ -89,7 +109,20 @@ export default function Index() {
 
     const timer = setTimeout(capturePreview, 50);
     return () => clearTimeout(timer);
-  }, [combinedTemplate, selectedProduct?.image]);
+  }, [
+    overlayImage,
+    selectedProduct?.price.currentPrice,
+    selectedProduct?.price.discount,
+    selectedProduct?.name,
+    selectedProduct?.image,
+  ]);
+
+  // If a standalone preview image is generated (e.g., via capture), include it as an optional thumbnail
+  useEffect(() => {
+    const image = productInfo?.productImage;
+    if (!image) return;
+    setSideImages((prev) => (prev.includes(image) ? prev : [...prev, image]));
+  }, [productInfo?.productImage]);
 
   // Handle thumbnail click
   const handleThumbnailClick = (img: string) => {
@@ -105,11 +138,23 @@ export default function Index() {
     return price - discountAmount;
   }
 
-  const navigate = useNavigate();
-
-  function handleNext() {
+  const handleNext = async () => {
+    if (previewRef.current) {
+      try {
+        const canvas = await html2canvas(previewRef.current, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: null,
+          allowTaint: true,
+        });
+        const snapshot = canvas.toDataURL("image/png");
+        dispatch(updateProductImage(snapshot));
+      } catch (err) {
+        console.warn("Failed to capture checkout preview before payment:", err);
+      }
+    }
     navigate("/payment");
-  }
+  };
   return (
     <main className=" min-h-screen">
       <header className="space-y-4 mb-6">
@@ -158,14 +203,29 @@ export default function Index() {
               backgroundRepeat: "no-repeat",
             }}
           >
-            {!combinedTemplate ? (
+            {!overlayImage ? (
               <p className="text-white text-lg  font-medium drop-shadow">
                 No template selected
               </p>
             ) : (
-              sideImages[2] !== activeImage && (
-                <SVGCanvas url={combinedTemplate} width={200} height={400} />
-              )
+              <div className="absolute inset-8 flex items-center justify-center pointer-events-none">
+                <div className="relative w-full h-full max-w-[320px] max-h-[420px] flex items-center justify-center">
+                  {!finalComposedTemplate && background && (
+                    <div
+                      className="absolute inset-0 rounded-xl shadow-inner"
+                      style={{
+                        backgroundImage: `url(${background})`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                        backgroundRepeat: "no-repeat",
+                      }}
+                    />
+                  )}
+                  <div className="relative z-10 pointer-events-auto">
+                    <SVGCanvas url={overlayImage} width={260} height={400} />
+                  </div>
+                </div>
+              </div>
             )}
           </div>
           {/* details */}

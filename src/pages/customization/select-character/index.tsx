@@ -22,6 +22,7 @@ const SelectCharacter = () => {
   );
   // customization state is not needed here, but left out in case of future features
   const { selectedTemplate } = useSelector((state: RootState) => state.template);
+  const { selectedProduct } = useSelector((state: RootState) => state.product);
   const navigate = useNavigate();
 
   const maxAllowed = selectedTemplate?.noOfCharactersInTemplate ?? 4;
@@ -38,6 +39,10 @@ const SelectCharacter = () => {
   const [showTooltip2, setShowTooltip2] = useState(false);
 
   useEffect(() => {
+    if (!selectedProduct) {
+      navigate("/customization");
+      return;
+    }
     // If user navigates to select-characters without a selected template, take them back to select-template
     if (!selectedTemplate) {
       navigate("/customization/select-template");
@@ -48,7 +53,7 @@ const SelectCharacter = () => {
     if (!hasSeenOnboarding) {
       setShowTooltip(true);
     }
-  }, [selectedTemplate, navigate]);
+  }, [selectedTemplate, selectedProduct, navigate]);
 
   const handleSkip = () => {
     localStorage.setItem("hasSeenOnboarding", "true");
@@ -77,6 +82,9 @@ const SelectCharacter = () => {
         </h1>
         <p className="text-[18px]">
           Choose your base models to customize (Select {maxAllowed} or less only)
+        </p>
+        <p className="text-sm text-gray-600">
+          {selectedCharacters.length} / {maxAllowed} selected
         </p>
         <div className="flex justify-center lg:justify-end w-full">
           <button

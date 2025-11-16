@@ -10,11 +10,15 @@ export type SelectedCharacter = CharacterData & {
 interface CharacterState {
   characters: CharacterData[];
   selectedCharacters: SelectedCharacter[];
+  generatedImages?: {
+    [id: number]: string;
+  };
 }
 
 const initialState: CharacterState = {
   characters: charactersList,
   selectedCharacters: [],
+  generatedImages: {},
 };
 
 const characterSlice = createSlice({
@@ -62,6 +66,18 @@ const characterSlice = createSlice({
       );
       if (char) char.png = action.payload.png;
     },
+    setGeneratedCharacterImage: (
+      state,
+      action: PayloadAction<{ id: number; png: string }>
+    ) => {
+      if (!state.generatedImages) state.generatedImages = {};
+      state.generatedImages[action.payload.id] = action.payload.png;
+    },
+
+    removeGeneratedCharacterImage: (state, action: PayloadAction<number>) => {
+      if (!state.generatedImages) return;
+      delete state.generatedImages[action.payload];
+    },
 
     removeCharacter: (state, action: PayloadAction<number>) => {
       state.selectedCharacters = state.selectedCharacters.filter(
@@ -80,6 +96,8 @@ export const {
   updateCharacterName,
   updateCharacterColor,
   updateCharacterImage,
+  setGeneratedCharacterImage,
+  removeGeneratedCharacterImage,
   removeCharacter,
   clearAllCharacters,
 } = characterSlice.actions;

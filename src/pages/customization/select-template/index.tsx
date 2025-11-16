@@ -17,6 +17,9 @@ const index = () => {
   const { selectedTemplate } = useSelector(
     (state: RootState) => state.template
   );
+  const { selectedProduct } = useSelector(
+    (state: RootState) => state.product
+  );
   // no longer reading selectedCharacters here since template is chosen first
 
   // Since user will select template first, show all templates
@@ -37,12 +40,16 @@ const index = () => {
 
   const [showTooltip, setShowTooltip] = useState(false);
   useEffect(() => {
+    if (!selectedProduct) {
+      navigate("/customization");
+      return;
+    }
     const hasSeenOnboarding =
       localStorage.getItem("hasSeenOnboarding") === "true";
     if (!hasSeenOnboarding) {
       setShowTooltip(true);
     }
-  }, []);
+  }, [selectedProduct, navigate]);
 
   const handleSkip = () => {
     localStorage.setItem("hasSeenOnboarding", "true");
@@ -94,6 +101,12 @@ const index = () => {
                       className="w-full h-full object-contain"
                     />
                   </div>
+                  <div className="absolute top-2 left-2 bg-white/90 text-xs font-semibold text-gray-700 px-2 py-1 rounded-full shadow">
+                    {item.noOfCharactersInTemplate}{" "}
+                    {item.noOfCharactersInTemplate === 1
+                      ? "Character"
+                      : "Characters"}
+                  </div>
                 </button>
               );
             })
@@ -118,6 +131,12 @@ const index = () => {
                       alt={`Template ${item.id}`}
                       className="w-full h-full object-contain"
                     />
+                  </div>
+                  <div className="absolute top-2 left-2 bg-white/90 text-xs font-semibold text-gray-700 px-2 py-1 rounded-full shadow">
+                    {item.noOfCharactersInTemplate}{" "}
+                    {item.noOfCharactersInTemplate === 1
+                      ? "Character"
+                      : "Characters"}
                   </div>
                 </button>
               );

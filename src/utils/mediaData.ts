@@ -14,6 +14,7 @@ import applepay from "../assets/icons/applepay.png";
 import CODicon from "../assets/icons/bycash.png";
 import ss from "../assets/images/ss.png";
 import demoshirt from "../assets/images/shrt.png";
+import newMale from '../assets/characters/fianlmale.png'
 
 import cup1 from "../assets/cups/cup1.png";
 import cup2 from "../assets/cups/cup2.png";
@@ -60,7 +61,6 @@ import newGirl from "../assets/characters/finalFemale.png";
 import newChidl1 from "../assets/characters/finalchildgirl.png";
 import newChild2 from "../assets/characters/finalchildboy.png";
 import newbaby from "../assets/characters/finalbaby.png";
-import newMale from "../assets/characters/fianlmale.png";
 
 export const mediaData = {
   landingImage1,

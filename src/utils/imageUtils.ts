@@ -47,10 +47,6 @@ export async function compressBlobToWebp(
 
 export default compressBlobToWebp;
 
-/**
- * Fetches an image from the specified URL and compresses it into a webp File.
- * Returns null if the fetch fails or errors.
- */
 export async function compressImageUrlToWebp(
   imageUrl: string,
   filename: string,

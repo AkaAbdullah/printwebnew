@@ -4,16 +4,16 @@ import BackButton from "../../../components/base/BackButton";
 import type { RootState } from "../../../store";
 import { useNavigate } from "react-router-dom";
 import { MoveRight } from "lucide-react";
-import {
-  setCombinedTemplate,
-  setTemplateBackground,
-} from "../../../store/slices/templateSlice";
+import { setTemplateBackground, setFinalComposedTemplate } from "../../../store/slices/templateSlice";
+import { updateProductImage } from "../../../store/slices/checkoutSlice";
 import { useEffect, useRef, useState } from "react";
+import type { MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent } from "react";
 import html2canvas from "html2canvas";
 import OnboardingTooltip from "../../../components/base/OnboardingToolTip";
 import { mediaData } from "../../../utils/mediaData";
 import type { SelectedCharacter } from "../../../store/slices/characterSlice";
-import CanvasEditor from "../../../components/base/CanvasEditor";
+import CanvasEditor, { type CanvasEditorRef } from "../../../components/base/CanvasEditor";
+import { setCharacterVisible, setActiveCharacter } from "../../../store/slices/customizationSlice";
 
 const BackgroundSelectionPage = () => {
   const navigate = useNavigate();
@@ -21,37 +21,125 @@ const BackgroundSelectionPage = () => {
 
   const previewRef = useRef<HTMLDivElement>(null);
 
-  const captureCombinedImage = () => {
-    if (!previewRef.current) return;
+  const canvasEditorRef = useRef<CanvasEditorRef | null>(null);
 
-    html2canvas(previewRef.current, {
-      backgroundColor: null,
-      useCORS: true,
-      scale: 2,
-    }).then((canvas) => {
-      const imgDataUrl = canvas.toDataURL("image/png");
-
-      dispatch(setCombinedTemplate(imgDataUrl));
-    });
-  };
-
-  const { selectedTemplate, background, allBackgrounds } = useSelector(
+  const { selectedTemplate, background, allBackgrounds, combinedTemplate } = useSelector(
     (state: RootState) => state.template
   );
   const { selectedCharacters } = useSelector(
     (state: RootState) => state.character
   );
+  const { generatedImages } = useSelector((state: RootState) => state.character);
   const { activeCharacterId } = useSelector(
     (state: RootState) => state.customization
   );
+  const { selectedProduct } = useSelector((state: RootState) => state.product);
+
+  const [imageOffset, setImageOffset] = useState({ x: 0, y: 0 });
+  const dragStateRef = useRef<{
+    dragging: boolean;
+    startX: number;
+    startY: number;
+    originX: number;
+    originY: number;
+  }>({
+    dragging: false,
+    startX: 0,
+    startY: 0,
+    originX: 0,
+    originY: 0,
+  });
+
+  useEffect(() => {
+    // whenever we receive a new combined template or background reset offset to center
+    setImageOffset({ x: 0, y: 0 });
+  }, [combinedTemplate, background]);
+
+  useEffect(() => {
+    const handlePointerMove = (event: MouseEvent | TouchEvent) => {
+      if (!dragStateRef.current.dragging) return;
+      event.preventDefault();
+      const point =
+        event instanceof TouchEvent ? event.touches[0] ?? event.changedTouches[0] : event;
+      if (!point) return;
+      const deltaX = point.clientX - dragStateRef.current.startX;
+      const deltaY = point.clientY - dragStateRef.current.startY;
+      setImageOffset({
+        x: dragStateRef.current.originX + deltaX,
+        y: dragStateRef.current.originY + deltaY,
+      });
+    };
+
+    const handlePointerUp = () => {
+      if (dragStateRef.current.dragging) {
+        dragStateRef.current.dragging = false;
+      }
+    };
+
+    window.addEventListener("mousemove", handlePointerMove);
+    window.addEventListener("touchmove", handlePointerMove);
+    window.addEventListener("mouseup", handlePointerUp);
+    window.addEventListener("touchend", handlePointerUp);
+    window.addEventListener("touchcancel", handlePointerUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handlePointerMove);
+      window.removeEventListener("touchmove", handlePointerMove);
+      window.removeEventListener("mouseup", handlePointerUp);
+      window.removeEventListener("touchend", handlePointerUp);
+      window.removeEventListener("touchcancel", handlePointerUp);
+    };
+  }, []);
+
+  const startDraggingPreview = (
+    event: ReactMouseEvent<HTMLDivElement> | ReactTouchEvent<HTMLDivElement>
+  ) => {
+    if (!combinedTemplate) return;
+    event.preventDefault();
+    const point =
+      "touches" in event ? event.touches[0] ?? event.changedTouches[0] : event;
+    if (!point) return;
+    dragStateRef.current = {
+      dragging: true,
+      startX: point.clientX,
+      startY: point.clientY,
+      originX: imageOffset.x,
+      originY: imageOffset.y,
+    };
+  };
 
   const activeCharacter: SelectedCharacter | null =
     selectedCharacters.find((char) => char.id === activeCharacterId) ??
     selectedCharacters[0] ??
     null;
 
-  const handleNext = () => {
-    captureCombinedImage();
+  const capturePreviewImage = async (): Promise<string | null> => {
+    if (!previewRef.current) return null;
+    try {
+      const canvas = await html2canvas(previewRef.current, {
+        backgroundColor: null,
+        useCORS: true,
+        scale: 2,
+      });
+      return canvas.toDataURL("image/png");
+    } catch (err) {
+      console.warn("Failed to capture background preview:", err);
+      return null;
+    }
+  };
+
+  const handleNext = async () => {
+    let composedImage: string | null = null;
+    if (combinedTemplate) {
+      composedImage = await capturePreviewImage();
+      if (!composedImage) {
+        composedImage = combinedTemplate;
+      }
+    }
+    if (composedImage) {
+      dispatch(setFinalComposedTemplate(composedImage));
+      dispatch(updateProductImage(composedImage));
+    }
     navigate("/checkout");
   };
 
@@ -63,7 +151,33 @@ const BackgroundSelectionPage = () => {
     dispatch(setTemplateBackground(item));
   };
 
+  // make generated images visible and set the active character so it can be edited from this page
+  useEffect(() => {
+    if (selectedCharacters.length === 0) return;
+    // find first character which has a generated image
+    const charWithGenerated = selectedCharacters.find((c) => generatedImages?.[c.id]);
+    const target = charWithGenerated ?? selectedCharacters[0];
+    if (target) {
+      dispatch(setActiveCharacter(target));
+      dispatch(setCharacterVisible({ id: target.id, visible: true }));
+    }
+  }, [selectedCharacters, generatedImages, dispatch]);
+
   const [showTooltip, setShowTooltip] = useState(false);
+
+  useEffect(() => {
+    if (!selectedProduct) {
+      navigate("/customization");
+      return;
+    }
+    if (!selectedTemplate) {
+      navigate("/customization/select-template");
+      return;
+    }
+    if (selectedCharacters.length === 0) {
+      navigate("/customization/select-character");
+    }
+  }, [selectedProduct, selectedTemplate, selectedCharacters.length, navigate]);
 
   useEffect(() => {
     const hasSeenOnboarding =
@@ -122,40 +236,59 @@ const BackgroundSelectionPage = () => {
                   {!showTooltip && (
                     <div
                       ref={previewRef}
-                      className="w-full h-[500px] rounded-xl flex items-center justify-center overflow-hidden shadow-inner"
+                      className="relative w-full h-[500px] rounded-xl flex items-center justify-center overflow-hidden shadow-inner bg-center bg-cover"
                       style={{
                         backgroundImage: `url(${background})`,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
                         backgroundRepeat: "no-repeat",
                       }}
                     >
-                      <div className="flex w-full items-center justify-center">
-                        {/* Show rendered canvas of all selected characters on top of background */}
-                        <div className="w-full max-h-full">
-                          <div style={{ width: "100%", height: 500 }}>
-                            <div className="w-full h-full">
-                              <div className="flex items-center justify-center w-full h-full">
-                                {/* non-editable CanvasEditor shows combined characters */}
-                                {activeCharacter ? (
-                                  <CanvasEditor editable={false} width={700} height={500} />
-                                ) : selectedTemplate ? (
-                                  <img
-                                    src={selectedTemplate.image}
-                                    alt="Selected Template"
-                                    className="w-full max-h-full object-contain drop-shadow-2xl"
-                                  />
-                                ) : (
-                                  <p className="text-white text-lg font-medium drop-shadow">
-                                    No character selected
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </div>
+                      {combinedTemplate ? (
+                        <div
+                          onMouseDown={startDraggingPreview}
+                          onTouchStart={startDraggingPreview}
+                          className="absolute cursor-move select-none"
+                          style={{
+                            transform: `translate(${imageOffset.x}px, ${imageOffset.y}px)`,
+                          }}
+                        >
+                          <img
+                            src={combinedTemplate}
+                            alt="Character preview"
+                            className="max-h-[460px] max-w-[90vw] object-contain drop-shadow-2xl pointer-events-none"
+                          />
                         </div>
-                      </div>
+                      ) : activeCharacter ? (
+                        <CanvasEditor
+                          ref={canvasEditorRef}
+                          editable={true}
+                          width={700}
+                          height={500}
+                          imageOverrides={generatedImages}
+                        />
+                      ) : selectedTemplate ? (
+                        <img
+                          src={selectedTemplate.image}
+                          alt="Selected Template"
+                          className="max-h-full max-w-full w-full h-full object-contain drop-shadow-2xl"
+                        />
+                      ) : (
+                        <p className="text-white text-lg font-medium drop-shadow">
+                          No character selected
+                        </p>
+                      )}
                     </div>
+        )}
+        {!showTooltip && combinedTemplate && (
+          <div className="text-center text-sm text-gray-600">
+            Drag the snapshot to reposition it on the background.
+            <button
+              type="button"
+              className="ml-2 text-secondary underline font-medium"
+              onClick={() => setImageOffset({ x: 0, y: 0 })}
+            >
+              Reset position
+            </button>
+          </div>
         )}
         {showTooltip && (
           <img src={mediaData.ss} className="w-full object-cover" />

@@ -2,7 +2,11 @@ import { useNavigate } from "react-router";
 import { mediaData } from "../../utils/mediaData";
 // import { useDispatch } from "react-redux";
 
-const CustomizationButtons = () => {
+interface CustomizationButtonsProps {
+  onNext?: () => void;
+}
+
+const CustomizationButtons = ({ onNext }: CustomizationButtonsProps) => {
   const navigate = useNavigate();
   // const dispatch = useDispatch();
 
@@ -11,7 +15,8 @@ const CustomizationButtons = () => {
   };
 
   const handleNext = () => {
-    navigate("/customization/background-customization");
+    if (onNext) onNext();
+    else navigate("/customization/background-customization");
   };
 
   return (
