@@ -1,7 +1,207 @@
-import React from "react";
+import React, { useState } from "react";
 import BackButton from "../../components/base/BackButton";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import type { RootState } from "../../store";
+import { addOrder } from "../../store/slices/checkoutSlice";
+
+interface CustomerInfoFormProps {
+  onSuccess: () => void;
+}
+
+const CustomerInfoForm: React.FC<CustomerInfoFormProps> = ({ onSuccess }) => {
+  const dispatch = useDispatch();
+  const { productInfo } = useSelector((state: RootState) => state.checkout);
+  
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+  });
+
+  const [errors, setErrors] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+  });
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    setErrors((prev) => ({ ...prev, [name]: "" }));
+  };
+
+  const validateForm = () => {
+    const newErrors = {
+      name: "",
+      email: "",
+      phone: "",
+      address: "",
+    };
+    let isValid = true;
+
+    if (!formData.name.trim()) {
+      newErrors.name = "Name is required";
+      isValid = false;
+    }
+
+    if (!formData.email.trim()) {
+      newErrors.email = "Email is required";
+      isValid = false;
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = "Email is invalid";
+      isValid = false;
+    }
+
+    if (!formData.phone.trim()) {
+      newErrors.phone = "Phone is required";
+      isValid = false;
+    }
+
+    if (!formData.address.trim()) {
+      newErrors.address = "Address is required";
+      isValid = false;
+    }
+
+    setErrors(newErrors);
+    return isValid;
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (validateForm()) {
+      // Create order with customer info
+      const orderData = {
+        id: Date.now(),
+        product: productInfo.productName || "Product",
+        productImage: productInfo.productImage || "",
+        payment: "Pay at Register",
+        paymentStatus: "Pending" as const,
+        type: "In-Store Pickup",
+        typeStatus: "Processing" as const,
+        total: (productInfo.price.currentPrice * productInfo.quantity).toFixed(2),
+        date: new Date().toLocaleDateString(),
+        customerInfo: formData,
+      };
+      
+      dispatch(addOrder(orderData));
+      alert("Order placed successfully! You can pay at the register.");
+      onSuccess();
+    }
+  };
+
+  return (
+    <div className="min-h-screen p-4">
+      <BackButton />
+      <div className="max-w-2xl mx-auto">
+        <h1 className="text-2xl lg:text-3xl font-bold text-center mb-6 mt-4">Customer Information</h1>
+        <p className="text-center text-gray-600 mb-8">Please provide your details to complete the order</p>
+
+        <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-lg p-6 space-y-6">
+          <div>
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+              Full Name *
+            </label>
+            <input
+              type="text"
+              id="name"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary ${
+                errors.name ? "border-red-500" : "border-gray-300"
+              }`}
+              placeholder="John Doe"
+            />
+            {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
+          </div>
+
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              Email Address *
+            </label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary ${
+                errors.email ? "border-red-500" : "border-gray-300"
+              }`}
+              placeholder="john@example.com"
+            />
+            {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+          </div>
+
+          <div>
+            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+              Phone Number *
+            </label>
+            <input
+              type="tel"
+              id="phone"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary ${
+                errors.phone ? "border-red-500" : "border-gray-300"
+              }`}
+              placeholder="+1 (555) 123-4567"
+            />
+            {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
+          </div>
+
+          <div>
+            <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-2">
+              Address *
+            </label>
+            <textarea
+              id="address"
+              name="address"
+              value={formData.address}
+              onChange={handleChange}
+              rows={3}
+              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary ${
+                errors.address ? "border-red-500" : "border-gray-300"
+              }`}
+              placeholder="123 Main St, City, State, ZIP"
+            />
+            {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address}</p>}
+          </div>
+
+          <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+            <h3 className="font-semibold text-gray-800">Order Summary</h3>
+            <div className="flex justify-between text-sm">
+              <span>Product:</span>
+              <span>{productInfo.productName || "N/A"}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span>Quantity:</span>
+              <span>{productInfo.quantity}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span>Size:</span>
+              <span>{productInfo.size}</span>
+            </div>
+            <div className="flex justify-between font-semibold text-lg border-t pt-2 mt-2">
+              <span>Total:</span>
+              <span>${(productInfo.price.currentPrice * productInfo.quantity).toFixed(2)}</span>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            className="w-full py-3 bg-primary text-white font-semibold rounded-full hover:bg-red-700 transition-colors"
+          >
+            Place Order
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
 
 const OrdersTable: React.FC = () => {
   const { orders } = useSelector((state: RootState) => state.checkout);
@@ -109,17 +309,29 @@ const OrdersTable: React.FC = () => {
   );
 };
 
-// Example usage component
-const App: React.FC = () => {
+const OrdersPage: React.FC = () => {
+  const [showHistory, setShowHistory] = useState(false);
+  const { orders } = useSelector((state: RootState) => state.checkout);
+  
+  // Show form if user just came from checkout (no orders yet or last order is pending)
+  const shouldShowForm = !showHistory && (!orders || orders.length === 0 || 
+    (orders.length > 0 && orders[orders.length - 1].paymentStatus === "Pending" && orders[orders.length - 1].payment === "Pay at Register" && !orders[orders.length - 1].customerInfo));
+  
   return (
-    <div className="min-h-screen">
-      <BackButton />
-      <div className="max-w-7xl mx-auto px-4">
-        <h1 className="text-2xl text-center font-bold mb-6">Order History</h1>
-        <OrdersTable />
-      </div>
+    <div className="min-h-screen p-4">
+      {shouldShowForm ? (
+        <CustomerInfoForm onSuccess={() => setShowHistory(true)} />
+      ) : (
+        <>
+          <BackButton />
+          <div className="max-w-7xl mx-auto">
+            <h1 className="text-2xl lg:text-3xl font-bold text-center mb-8 mt-4">Order History</h1>
+            <OrdersTable />
+          </div>
+        </>
+      )}
     </div>
   );
 };
 
-export default App;
+export default OrdersPage;

@@ -19,7 +19,7 @@ export const charactersList: CharacterData[] = [
   {
     id: 2,
     title: "boy",
-    png: mediaData.newMale,
+    png: mediaData.newMale, 
     metaData: " male character",
   },
   {
@@ -33,6 +33,18 @@ export const charactersList: CharacterData[] = [
     title: "child",
     png: mediaData.newChild2,
     metaData: "male child character",
+  },
+  {
+    id: 5,
+    title: "pregnant woman",
+    png: mediaData.pgWomen,
+    metaData: "pregnant female character",
+  },
+  {
+    id: 6,
+    title: "man",
+    png: mediaData.pgman,
+    metaData: "adult male character",
   },
   
 ];

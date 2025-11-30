@@ -1,4 +1,4 @@
-import { MoveRight, X } from "lucide-react";
+import { MoveRight, X, Plus, Minus } from "lucide-react";
 import BackButton from "../../../components/base/BackButton";
 import { mediaData } from "../../../utils/mediaData";
 import { useDispatch, useSelector } from "react-redux";
@@ -25,13 +25,25 @@ const SelectCharacter = () => {
   const { selectedProduct } = useSelector((state: RootState) => state.product);
   const navigate = useNavigate();
 
-  const maxAllowed = selectedTemplate?.noOfCharactersInTemplate ?? 4;
+  // Get characters from template
+  const allowedCharacterPngs = selectedTemplate?.characters ?? [];
 
-  const allowedCharacterTitles = selectedTemplate?.titles ?? null;
+  const MAX_TOTAL_CHARACTERS = 10;
 
-  const handleSelect = (id: number) => {
-    if (selectedCharacters.length < maxAllowed) {
+  const getCharacterCount = (id: number) => {
+    return selectedCharacters.filter((c) => c.id === id).length;
+  };
+
+  const handleIncrease = (id: number) => {
+    if (selectedCharacters.length < MAX_TOTAL_CHARACTERS) {
       dispatch(addCharacter({ id }));
+    }
+  };
+
+  const handleDecrease = (id: number) => {
+    const characterInstances = selectedCharacters.filter((c) => c.id === id);
+    if (characterInstances.length > 0) {
+      dispatch(removeCharacter(characterInstances[characterInstances.length - 1].uniqueId));
     }
   };
 
@@ -81,10 +93,10 @@ const SelectCharacter = () => {
           How many characters do you want?
         </h1>
         <p className="text-[18px]">
-          Choose your base models to customize (Select {maxAllowed} or less only)
+          Choose your base models to customize
         </p>
         <p className="text-sm text-gray-600">
-          {selectedCharacters.length} / {maxAllowed} selected
+          {selectedCharacters.length} / {MAX_TOTAL_CHARACTERS} selected
         </p>
         <div className="flex justify-center lg:justify-end w-full">
           <button
@@ -105,41 +117,59 @@ const SelectCharacter = () => {
         {/* Left side grid: Available characters */}
         <div className="w-full lg:w-1/2 relative">
           <div className="grid grid-cols-1 justify-items-center sm:grid-cols-2 gap-6">
-            {(allowedCharacterTitles ? characters.filter(c => allowedCharacterTitles.includes(c.title)) : characters).map((item) => {
-              const isSelected = selectedCharacters.some(
-                (c) => c.id === item.id
-              );
+            {allowedCharacterPngs.map((characterPng) => {
+              const item = characters.find((c) => c.png === characterPng);
+              if (!item) return null;
+              const count = getCharacterCount(item.id);
+              const canAdd = selectedCharacters.length < MAX_TOTAL_CHARACTERS;
+              
               return (
                 <div
                   key={item.id}
-                  className={`relative flex justify-center items-center w-[237px] h-[240px] border rounded-2xl cursor-pointer ${
-                    isSelected
-                      ? "opacity-50 pointer-events-none border-[#C8A96A]"
-                      : "border-[#C8A96A] hover:shadow-md"
-                  }`}
-                  onClick={() => handleSelect(item.id)}
+                  className={`relative flex flex-col justify-center items-center w-[237px] h-[280px] border rounded-2xl border-[#C8A96A]`}
                 >
-                  <img
-                    src={mediaData.gradientBg}
-                    alt="gradient background"
-                    className="absolute w-full max-w-[220px] h-[220px] object-contain"
-                  />
+                  <div className="flex justify-center items-center flex-1">
+                    <img
+                      src={mediaData.gradientBg}
+                      alt="gradient background"
+                      className="absolute w-full max-w-[220px] h-[220px] object-contain"
+                    />
 
-                  <img
-                    src={item.png}
-                    alt={item.title}
-                    className="z-50 w-[180px] h-[180px] object-contain"
-                  />
+                    <img
+                      src={item.png}
+                      alt={item.title}
+                      className="z-50 w-[180px] h-[180px] object-contain"
+                    />
+                  </div>
 
-                  {
-                    <div className="absolute bottom-2 right-2">
-                      <img
-                        id="selectCharacter"
-                        src={mediaData.plusicon}
-                        alt="add icon"
-                      />
-                    </div>
-                  }
+                  <div className="flex items-center justify-center gap-3 pb-4 z-50">
+                    <button
+                      onClick={() => handleDecrease(item.id)}
+                      disabled={count === 0}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                        count === 0
+                          ? "bg-gray-300 cursor-not-allowed"
+                          : "bg-[#C8A96A] hover:bg-[#b89960]"
+                      } text-white`}
+                    >
+                      <Minus size={16} />
+                    </button>
+                    <span className="text-lg font-semibold min-w-[30px] text-center">
+                      {count}
+                    </span>
+                    <button
+                      id="selectCharacter"
+                      onClick={() => handleIncrease(item.id)}
+                      disabled={!canAdd}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                        !canAdd
+                          ? "bg-gray-300 cursor-not-allowed"
+                          : "bg-[#C8A96A] hover:bg-[#b89960]"
+                      } text-white`}
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -148,14 +178,14 @@ const SelectCharacter = () => {
 
         {/* Right side: Selected Characters */}
         <div className="w-full bg-[#F9F5EF] lg:w-1/2 p-4 rounded-lg">
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 max-h-[600px] overflow-y-auto">
             {selectedCharacters.map((char, index) => (
               <div
-                key={char.id}
+                key={char.uniqueId}
                 className="relative flex items-center gap-4 lg:gap-12"
               >
                 <div className="relative">
-                  <div className="flex items-center justify-center min-w-[60px] max-h-[60px] lg:w-[110px] lg:min-h-[80px] border border-dashed border-secondary rounded-xl bg-white">
+                  <div className="flex items-center justify-center min-w-[60px] max-h-[60px] lg:w-[110px] lg:min-h-20 border border-dashed border-secondary rounded-xl bg-white">
                     <img
                       src={char.png}
                       alt={char.name}
@@ -165,11 +195,11 @@ const SelectCharacter = () => {
 
                   <div
                     onClick={() => {
-                      dispatch(removeCharacter(char.id));
+                      dispatch(removeCharacter(char.uniqueId));
                       // clear any per-character customization when removed
-                      dispatch(clearCharacterCustomization({ id: char.id }));
+                      dispatch(clearCharacterCustomization({ uniqueId: char.uniqueId }));
                     }}
-                    className="absolute h-7 w-7 flex top-[-12px] cursor-pointer right-[-12px] items-center justify-center text-white rounded-full bg-secondary"
+                    className="absolute h-7 w-7 flex -top-3 cursor-pointer -right-3 items-center justify-center text-white rounded-full bg-secondary"
                   >
                     <X size={20} />
                   </div>
@@ -184,7 +214,7 @@ const SelectCharacter = () => {
                     onChange={(e) =>
                       dispatch(
                         updateCharacterName({
-                          id: char.id,
+                          uniqueId: char.uniqueId,
                           name: e.target.value,
                         })
                       )
@@ -195,7 +225,7 @@ const SelectCharacter = () => {
                   <ColorPallet
                     selected={char.color}
                     onSelect={(color) =>
-                      dispatch(updateCharacterColor({ id: char.id, color }))
+                      dispatch(updateCharacterColor({ uniqueId: char.uniqueId, color }))
                     }
                   />
                 </div>

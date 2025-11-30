@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useImperativeHandle } from "react";
 import html2canvas from "html2canvas";
-import { Stage, Layer, Image as KonvaImage, Transformer } from "react-konva";
+import { Stage, Layer, Image as KonvaImage, Transformer, Text as KonvaText } from "react-konva";
 import Konva from "konva";
 import type { RootState } from "../../store";
 import { useDispatch, useSelector } from "react-redux";
@@ -12,6 +12,15 @@ import {
 import type { SelectedCharacter } from "../../store/slices/characterSlice";
 
 // Purpose: Render selected characters on a Konva stage and allow drag/scale
+export type CanvasTextBlock = {
+  id: string;
+  text: string;
+  x: number;
+  y: number;
+  fontSize?: number;
+  color?: string;
+};
+
 export interface CanvasEditorRef {
   exportAsDataURL: (scale?: number, hideTransformer?: boolean) => string | null;
   exportDomSnapshot: (
@@ -27,9 +36,27 @@ interface CanvasEditorProps {
   width?: number;
   height?: number;
   imageOverrides?: Record<number, string | undefined>;
+  textBlocks?: CanvasTextBlock[];
+  onTextDragEnd?: (id: string, x: number, y: number) => void;
+  onTextTransform?: (id: string, fontSize: number) => void;
+  activeTextId?: string | null;
+  onTextSelect?: (id: string | null) => void;
 }
 const CanvasEditor = React.forwardRef<CanvasEditorRef, CanvasEditorProps>(
-  ({ editable = true, width = 600, height = 600, imageOverrides }, ref) => {
+  (
+    {
+      editable = true,
+      width = 600,
+      height = 600,
+      imageOverrides,
+      textBlocks = [],
+      onTextDragEnd,
+      onTextTransform,
+      activeTextId,
+      onTextSelect,
+    },
+    ref
+  ) => {
   const dispatch = useDispatch();
   const { selectedCharacters } = useSelector((state: RootState) => state.character);
   const { customizations, activeCharacterId } = useSelector(
@@ -41,7 +68,7 @@ const CanvasEditor = React.forwardRef<CanvasEditorRef, CanvasEditorProps>(
   const trRef = useRef<Konva.Transformer | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  const [images, setImages] = useState<Record<number, HTMLImageElement | null>>({});
+  const [images, setImages] = useState<Record<string, HTMLImageElement | null>>({});
 
   const detachTransformer = () => {
     const tr = trRef.current;
@@ -73,9 +100,9 @@ const CanvasEditor = React.forwardRef<CanvasEditorRef, CanvasEditorProps>(
   const src = imageOverrides?.[char.id] ?? char.png;
       img.src = src;
       img.onload = () => {
-        setImages((prev) => ({ ...prev, [char.id]: img }));
+        setImages((prev) => ({ ...prev, [char.uniqueId]: img }));
         // If there's no scale initialized, set default scale so the image fits
-  const cust = customizations[char.id];
+  const cust = customizations[char.uniqueId];
           // Only set a default scale if none exists yet (null or undefined)
     if (cust?.visibleOnCanvas && (!cust || cust.scale == null || !cust.scaleNormalized)) {
             const stageWidth = width;
@@ -90,33 +117,41 @@ const CanvasEditor = React.forwardRef<CanvasEditorRef, CanvasEditorProps>(
             // Cap the up-scale to avoid pixelation
             const MAX_SCALE = 1.5;
             if (scale > MAX_SCALE) scale = MAX_SCALE;
-            dispatch(setCharacterScale({ id: char.id, scale }));
+            dispatch(setCharacterScale({ uniqueId: char.uniqueId, scale }));
           }
   // ensure position exists
   if (cust?.visibleOnCanvas && !cust?.position) {
-          const index = selectedCharacters.findIndex((c) => c.id === char.id);
+          const index = selectedCharacters.findIndex((c) => c.uniqueId === char.uniqueId);
           const stageWidth = width;
           const stageHeight = height;
           const gap = 120;
           const centerX = stageWidth / 2;
           const baseX = centerX + (index - Math.floor(selectedCharacters.length / 2)) * gap;
           const baseY = Math.round(stageHeight / 2);
-          dispatch(setCharacterPosition({ id: char.id, x: baseX, y: baseY }));
+          dispatch(setCharacterPosition({ uniqueId: char.uniqueId, x: baseX, y: baseY }));
         }
       };
-      img.onerror = () => setImages((prev) => ({ ...prev, [char.id]: null }));
+      img.onerror = () => setImages((prev) => ({ ...prev, [char.uniqueId]: null }));
     });
   }, [selectedCharacters, customizations, dispatch, width, height, imageOverrides]);
 
   useEffect(() => {
-    // attach transformer to active shape
+    const layer = layerRef.current;
+    if (!layer) return;
+    if (activeTextId) {
+      const textNode = layer.findOne(`#text-${activeTextId}`) as Konva.Node | null;
+      if (textNode) {
+        attachTransformerToNode(textNode);
+        return;
+      }
+    }
     if (activeCharacterId == null) {
       detachTransformer();
       return;
     }
     if (!images[activeCharacterId]) return;
     attachTransformerToNode();
-  }, [activeCharacterId, images]);
+  }, [activeCharacterId, activeTextId, images, textBlocks]);
 
   useEffect(() => {
     if (!editable) return;
@@ -136,10 +171,10 @@ const CanvasEditor = React.forwardRef<CanvasEditorRef, CanvasEditorProps>(
     };
   }, [editable]);
 
-  const handleDragEnd = (id: number, e: Konva.KonvaEventObject<DragEvent>) => {
+  const handleDragEnd = (uniqueId: string, e: Konva.KonvaEventObject<DragEvent>) => {
     const x = e.target.x();
     const y = e.target.y();
-    dispatch(setCharacterPosition({ id, x, y }));
+    dispatch(setCharacterPosition({ uniqueId, x, y }));
   };
 
   useImperativeHandle(ref, () => ({
@@ -220,6 +255,7 @@ const CanvasEditor = React.forwardRef<CanvasEditorRef, CanvasEditorProps>(
     if (!stage) return;
     if (target === stage || target?.getType?.() === "Layer") {
       detachTransformer();
+      onTextSelect?.(null);
     }
   };
 
@@ -237,28 +273,30 @@ const CanvasEditor = React.forwardRef<CanvasEditorRef, CanvasEditorProps>(
       >
         <Layer ref={layerRef}>
           {selectedCharacters.map((char: SelectedCharacter) => {
-            const cust = customizations[char.id];
+            const cust = customizations[char.uniqueId];
             // Only render if the character has been added to the canvas explicitly
             if (!cust?.visibleOnCanvas) return null;
-            const img = images[char.id];
+            const img = images[char.uniqueId];
             const pos = cust?.position ?? { x: 250, y: 250 };
             const scale = cust?.scale ?? 1;
             return img ? (
-              <React.Fragment key={char.id}>
+              <React.Fragment key={char.uniqueId}>
           <KonvaImage
-                  id={`char-${char.id}`}
+                  id={`char-${char.uniqueId}`}
                   image={img}
                   x={pos.x}
                   y={pos.y}
             draggable={editable}
-                  onDragEnd={(e) => handleDragEnd(char.id, e)}
+                  onDragEnd={(e) => handleDragEnd(char.uniqueId, e)}
             onClick={(e) => {
               if (!editable) return;
+              onTextSelect?.(null);
               dispatch(setActiveCharacter(char));
               attachTransformerToNode(e.target);
             }}
             onTap={(e) => {
               if (!editable) return;
+              onTextSelect?.(null);
               dispatch(setActiveCharacter(char));
               attachTransformerToNode(e.target);
             }}
@@ -269,6 +307,44 @@ const CanvasEditor = React.forwardRef<CanvasEditorRef, CanvasEditorProps>(
               </React.Fragment>
             ) : null;
           })}
+          {textBlocks.map((block) => (
+            <KonvaText
+              key={block.id}
+              id={`text-${block.id}`}
+              text={block.text}
+              x={block.x}
+              y={block.y}
+              fontSize={block.fontSize ?? 36}
+              fill={block.color ?? "#1f2937"}
+              draggable={editable}
+              onDragEnd={(e: Konva.KonvaEventObject<DragEvent>) => {
+                onTextDragEnd?.(block.id, e.target.x(), e.target.y());
+              }}
+              onClick={(e) => {
+                if (!editable) return;
+                onTextSelect?.(block.id);
+                attachTransformerToNode(e.target);
+              }}
+              onTap={(e) => {
+                if (!editable) return;
+                onTextSelect?.(block.id);
+                attachTransformerToNode(e.target);
+              }}
+              onTransformEnd={() => {
+                const layer = layerRef.current;
+                if (!layer) return;
+                const textNode = layer.findOne(
+                  `#text-${block.id}`
+                ) as Konva.Text | null;
+                if (!textNode) return;
+                const scaleX = textNode.scaleX();
+                const scaleY = textNode.scaleY();
+                const newFontSize = textNode.fontSize() * Math.max(scaleX, scaleY);
+                textNode.scale({ x: 1, y: 1 });
+                onTextTransform?.(block.id, Math.max(8, newFontSize));
+              }}
+            />
+          ))}
           {editable && (
             <Transformer
             ref={trRef}
@@ -280,10 +356,13 @@ const CanvasEditor = React.forwardRef<CanvasEditorRef, CanvasEditorProps>(
               if (!node) return;
               const idStr = node?.id();
               if (!idStr) return;
-              const id = parseInt(idStr.replace("char-", ""), 10);
+              if (!idStr.startsWith("char-")) {
+                return;
+              }
+              const uniqueId = idStr.replace("char-", "");
               const scale = node.scaleX();
               // update redux
-              dispatch(setCharacterScale({ id, scale }));
+              dispatch(setCharacterScale({ uniqueId, scale }));
             }}
             />
           )}

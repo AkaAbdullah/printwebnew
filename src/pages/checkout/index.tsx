@@ -30,6 +30,7 @@ export default function Index() {
 
   const [sideImages, setSideImages] = useState<string[]>([]);
   const [activeImage, setActiveImage] = useState<string | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   console.log(sideImages);
@@ -153,7 +154,16 @@ export default function Index() {
         console.warn("Failed to capture checkout preview before payment:", err);
       }
     }
-    navigate("/payment");
+    setShowPaymentModal(true);
+  };
+
+  const handlePaymentMethodSelect = (method: "credit-card" | "register") => {
+    setShowPaymentModal(false);
+    if (method === "credit-card") {
+      navigate("/payment");
+    } else {
+      navigate("/orders");
+    }
   };
   return (
     <main className=" min-h-screen">
@@ -222,7 +232,7 @@ export default function Index() {
                     />
                   )}
                   <div className="relative z-10 pointer-events-auto">
-                    <SVGCanvas url={overlayImage} width={260} height={400} />
+                    <SVGCanvas url={overlayImage} width={430} height={500} />
                   </div>
                 </div>
               </div>
@@ -350,6 +360,61 @@ export default function Index() {
           </div>
         </div>
       </section>
+
+      {/* Payment Method Modal */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-6">
+            <div className="text-center">
+              <h2 className="text-2xl font-bold text-gray-800">Select Payment Method</h2>
+              <p className="text-gray-600 mt-2">Choose how you'd like to pay for your order</p>
+            </div>
+
+            <div className="space-y-4">
+              <button
+                onClick={() => handlePaymentMethodSelect("credit-card")}
+                className="w-full p-4 border-2 border-secondary rounded-xl hover:bg-secondary/5 transition-all duration-200 text-left group"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-secondary/10 flex items-center justify-center group-hover:bg-secondary/20 transition-colors">
+                    <svg className="w-6 h-6 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-800">Credit Card</h3>
+                    <p className="text-sm text-gray-600">Pay securely with your card</p>
+                  </div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => handlePaymentMethodSelect("register")}
+                className="w-full p-4 border-2 border-secondary rounded-xl hover:bg-secondary/5 transition-all duration-200 text-left group"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-secondary/10 flex items-center justify-center group-hover:bg-secondary/20 transition-colors">
+                    <svg className="w-6 h-6 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-800">Pay at Register</h3>
+                    <p className="text-sm text-gray-600">Complete payment in store</p>
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            <button
+              onClick={() => setShowPaymentModal(false)}
+              className="w-full py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

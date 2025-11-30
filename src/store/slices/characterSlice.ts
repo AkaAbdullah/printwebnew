@@ -3,6 +3,7 @@ import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { charactersList, type CharacterData } from "../../utils/characters";
 
 export type SelectedCharacter = CharacterData & {
+  uniqueId: string;
   name: string;
   color: string;
 };
@@ -32,27 +33,28 @@ const characterSlice = createSlice({
       const { id, name = "", color = "#ccc" } = action.payload;
       const baseChar = state.characters.find((c) => c.id === id);
 
-      if (baseChar && !state.selectedCharacters.some((c) => c.id === id)) {
-        state.selectedCharacters.push({ ...baseChar, name, color });
+      if (baseChar) {
+        const uniqueId = `${id}-${Date.now()}-${Math.random()}`;
+        state.selectedCharacters.push({ ...baseChar, uniqueId, name, color });
       }
     },
 
     updateCharacterName: (
       state,
-      action: PayloadAction<{ id: number; name: string }>
+      action: PayloadAction<{ uniqueId: string; name: string }>
     ) => {
       const char = state.selectedCharacters.find(
-        (c) => c.id === action.payload.id
+        (c) => c.uniqueId === action.payload.uniqueId
       );
       if (char) char.name = action.payload.name;
     },
 
     updateCharacterColor: (
       state,
-      action: PayloadAction<{ id: number; color: string }>
+      action: PayloadAction<{ uniqueId: string; color: string }>
     ) => {
       const char = state.selectedCharacters.find(
-        (c) => c.id === action.payload.id
+        (c) => c.uniqueId === action.payload.uniqueId
       );
       if (char) char.color = action.payload.color;
     },
@@ -79,9 +81,9 @@ const characterSlice = createSlice({
       delete state.generatedImages[action.payload];
     },
 
-    removeCharacter: (state, action: PayloadAction<number>) => {
+    removeCharacter: (state, action: PayloadAction<string>) => {
       state.selectedCharacters = state.selectedCharacters.filter(
-        (c) => c.id !== action.payload
+        (c) => c.uniqueId !== action.payload
       );
     },
 

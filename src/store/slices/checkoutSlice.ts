@@ -9,17 +9,25 @@ export interface ShippingAddress {
   useAsBilling: boolean;
 }
 
+export interface CustomerInfo {
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+}
+
 export interface Order {
   id: number;
   product: string;
   payment: string;
   productImage: string;
   paymentStatus: "Pending" | "Paid";
-  type: "Delivery";
+  type: "Delivery" | "In-Store Pickup";
   typeStatus: "Processing" | "Shipped" | "Delivered";
-  total: number;
+  total: string | number;
   date: string;
-  shippingAddress: ShippingAddress;
+  shippingAddress?: ShippingAddress;
+  customerInfo?: CustomerInfo;
 }
 const initialState = {
   productInfo: {
@@ -30,6 +38,10 @@ const initialState = {
     color: "#fff",
     quantity: 1,
     orderPrice: 0,
+    price: {
+      currentPrice: 0,
+      discount: 0,
+    },
   },
   orders: [] as Order[],
 };
@@ -79,6 +91,7 @@ const checkoutSlice = createSlice({
 
     updateProductPrice: (state, action) => {
       const { currentPrice, discount } = action.payload;
+      state.productInfo.price = { currentPrice, discount };
       const discountedPrice = currentPrice - (currentPrice * discount) / 100;
       state.productInfo.orderPrice =
         discountedPrice * state.productInfo.quantity;
@@ -120,6 +133,10 @@ const checkoutSlice = createSlice({
     deleteOrder: (state, action) => {
       state.orders.filter((item) => item.id !== action.payload);
     },
+
+    addOrder: (state, action) => {
+      state.orders.push(action.payload);
+    },
   },
 });
 
@@ -134,6 +151,7 @@ export const {
   resetState,
   deleteOrder,
   updateProductPrice,
+  addOrder,
 } = checkoutSlice.actions;
 
 export default checkoutSlice;

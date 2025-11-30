@@ -77,10 +77,10 @@ const CustomizationPage = () => {
   >("Hair");
 
   const selectedCharacterId =
-    activeCharacterId ?? selectedCharacters[0]?.id ?? null;
+    activeCharacterId ?? selectedCharacters[0]?.uniqueId ?? null;
 
   const selectedCharacter =
-    selectedCharacters.find((char) => char.id === selectedCharacterId) ?? null;
+    selectedCharacters.find((char) => char.uniqueId === selectedCharacterId) ?? null;
   const isDog = selectedCharacter?.title?.toLowerCase() === "dog";
 
   const currentCustomization = selectedCharacterId
@@ -107,10 +107,11 @@ const CustomizationPage = () => {
 
   const handleCharacterClick = (item: SelectedCharacter) => {
     // Always set the clicked character as active and make sure it is visible on the canvas.
+    setActiveTextId(null);
     dispatch(setActiveCharacter(item));
-    const isVisible = customizations[item.id]?.visibleOnCanvas;
+    const isVisible = customizations[item.uniqueId]?.visibleOnCanvas;
     if (!isVisible) {
-      dispatch(setCharacterVisible({ id: item.id, visible: true }));
+      dispatch(setCharacterVisible({ uniqueId: item.uniqueId, visible: true }));
     }
   };
 
@@ -133,8 +134,8 @@ const CustomizationPage = () => {
         dispatch(setActiveCharacter(first));
       }
       // ensure first character is visible by default on the canvas
-      if (!customizations[first.id]?.visibleOnCanvas) {
-        dispatch(setCharacterVisible({ id: first.id, visible: true }));
+      if (!customizations[first.uniqueId]?.visibleOnCanvas) {
+        dispatch(setCharacterVisible({ uniqueId: first.uniqueId, visible: true }));
       }
     }
   }, [
@@ -212,12 +213,58 @@ const CustomizationPage = () => {
   };
 
   const handleVisibilityToggle = (character: SelectedCharacter) => {
-    const isVisible = customizations[character.id]?.visibleOnCanvas ?? false;
-    if (!customizations[character.id]) {
+    setActiveTextId(null);
+    const isVisible = customizations[character.uniqueId]?.visibleOnCanvas ?? false;
+    if (!customizations[character.uniqueId]) {
       dispatch(setActiveCharacter(character));
     }
     dispatch(
-      setCharacterVisible({ id: character.id, visible: !isVisible })
+      setCharacterVisible({ uniqueId: character.uniqueId, visible: !isVisible })
+    );
+  };
+
+  const handleAddTextBlock = () => {
+    const value = newTextValue.trim() || "New text";
+    const centerX = 300;
+    const centerY = 80 + textBlocks.length * 45;
+    const newId = `${Date.now()}`;
+    setTextBlocks((prev) => [
+      ...prev,
+      {
+        id: newId,
+        text: value,
+        x: centerX,
+        y: centerY,
+        fontSize: 42,
+        color: "#1f2937",
+      },
+    ]);
+    setNewTextValue("");
+    setActiveTextId(newId);
+  };
+
+  const handleTextChange = (id: string, text: string) => {
+    setTextBlocks((prev) =>
+      prev.map((block) => (block.id === id ? { ...block, text } : block))
+    );
+  };
+
+  const handleTextDragEnd = (id: string, x: number, y: number) => {
+    setTextBlocks((prev) =>
+      prev.map((block) => (block.id === id ? { ...block, x, y } : block))
+    );
+  };
+
+  const handleRemoveTextBlock = (id: string) => {
+    if (activeTextId === id) {
+      setActiveTextId(null);
+    }
+    setTextBlocks((prev) => prev.filter((block) => block.id !== id));
+  };
+
+  const handleTextTransform = (id: string, fontSize: number) => {
+    setTextBlocks((prev) =>
+      prev.map((block) => (block.id === id ? { ...block, fontSize } : block))
     );
   };
 
@@ -235,6 +282,37 @@ const CustomizationPage = () => {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewModalData, setReviewModalData] =
     useState<ReviewModalData | null>(null);
+  const [textBlocks, setTextBlocks] = useState<
+    Array<{
+      id: string;
+      text: string;
+      x: number;
+      y: number;
+      fontSize?: number;
+      color?: string;
+    }>
+  >([]);
+  const [activeTextId, setActiveTextId] = useState<string | null>(null);
+  const [newTextValue, setNewTextValue] = useState<string>("New text");
+  const [textBlocksInitialized, setTextBlocksInitialized] = useState(false);
+
+  // Initialize text blocks with character names from previous state (only once)
+  useEffect(() => {
+    if (selectedCharacters.length > 0 && !textBlocksInitialized) {
+      const initialBlocks = selectedCharacters
+        .filter((char) => char.name && char.name.trim())
+        .map((char, index) => ({
+          id: `char-name-${char.uniqueId}`,
+          text: char.name,
+          x: 300,
+          y: 80 + index * 45,
+          fontSize: 42,
+          color: char.color || "#1f2937",
+        }));
+      setTextBlocks(initialBlocks);
+      setTextBlocksInitialized(true);
+    }
+  }, [selectedCharacters, textBlocksInitialized]);
 
   useEffect(() => {
     const hasSeenOnboarding =
@@ -259,8 +337,8 @@ const CustomizationPage = () => {
       navigate("/customization/background-customization");
       return;
     }
-    const primaryId = activeCharacterId ?? selectedCharacters[0]?.id;
-    const primary = selectedCharacters.find((c) => c.id === primaryId);
+    const primaryId = activeCharacterId ?? selectedCharacters[0]?.uniqueId;
+    const primary = selectedCharacters.find((c) => c.uniqueId === primaryId);
     if (!primary) {
       navigate("/customization/background-customization");
       return;
@@ -292,7 +370,7 @@ const CustomizationPage = () => {
     if (dataUrl) {
       dispatch(setCombinedTemplate(dataUrl));
     }
-    dispatch(setCharacterVisible({ id: primary.id, visible: true }));
+    dispatch(setCharacterVisible({ uniqueId: primary.uniqueId, visible: true }));
     dispatch(setActiveCharacter(primary));
 
     navigate("/customization/background-customization");
@@ -401,7 +479,7 @@ const CustomizationPage = () => {
     setIsGenerating(true);
     setShowReviewModal(false);
     const primaryCharacter =
-      selectedCharacters.find((char) => char.id === selectedCharacterId) ??
+      selectedCharacters.find((char) => char.uniqueId === selectedCharacterId) ??
       selectedCharacters[0];
 
     const typeOrder: Array<"head" | "hair" | "shirt" | "jeans"> = [
@@ -413,7 +491,7 @@ const CustomizationPage = () => {
 
     const preparedEntries = selectedCharacters
       .map((character) => {
-        const characterCustomization = customizations[character.id];
+        const characterCustomization = customizations[character.uniqueId];
         if (!characterCustomization) {
           return null;
         }
@@ -712,7 +790,7 @@ const CustomizationPage = () => {
         );
         // ensure the generated character is visible on the canvas and set active so the user
         // can manipulate it on the background page
-        dispatch(setCharacterVisible({ id: primaryCharacter.id, visible: true }));
+        dispatch(setCharacterVisible({ uniqueId: primaryCharacter.uniqueId, visible: true }));
         dispatch(setActiveCharacter(primaryCharacter));
         dispatch(setCombinedTemplate(dataUrl));
       }
@@ -756,12 +834,37 @@ const CustomizationPage = () => {
             </div>
           </div>
         )}
-  <div className="w-full lg:w-1/2 flex flex-col items-center gap-6 justify-center p-6 rounded-xl relative">
-          {/* canvas editor preview */}
-
+        <div className="w-full lg:w-1/2 flex flex-col items-center gap-6 justify-center p-6 rounded-xl relative">
+          <div className="w-full flex flex-wrap items-center gap-3 justify-between bg-white/90 border border-gray-200 rounded-xl px-4 py-3 shadow-sm">
+            <div className="flex flex-1 min-w-[220px] items-center gap-2">
+              <input
+                type="text"
+                value={newTextValue}
+                onChange={(e) => setNewTextValue(e.target.value)}
+                placeholder="Enter Character Name"
+                className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-secondary/50"
+              />
+              <button
+                type="button"
+                onClick={handleAddTextBlock}
+                className="text-sm font-semibold px-4 py-2 rounded-lg bg-secondary text-white hover:bg-secondary/80"
+              >
+                Add Text
+              </button>
+            </div>
+            
+          </div>
           <div ref={canvasContainerRef} className="w-full">
             {/* Canvas reduced by 30% height (default 600 -> 420) */}
-            <CanvasEditor ref={canvasEditorRef} height={420} />
+            <CanvasEditor
+              ref={canvasEditorRef}
+              height={420}
+              textBlocks={textBlocks}
+              onTextDragEnd={handleTextDragEnd}
+              onTextTransform={handleTextTransform}
+              activeTextId={activeTextId}
+              onTextSelect={setActiveTextId}
+            />
           </div>
           {/* Selected template preview shown below the canvas */}
           {selectedTemplate && (
@@ -778,18 +881,65 @@ const CustomizationPage = () => {
               </div>
             </div>
           )}
+          {textBlocks.length > 0 && (
+            <div className="w-full bg-white/70 border border-dashed border-gray-300 rounded-xl p-4 space-y-3">
+              <p className="text-sm font-semibold text-gray-700">
+                Text Layers
+              </p>
+              {textBlocks.map((block) => (
+                <div
+                  key={block.id}
+                  className={`flex items-center gap-2 text-xs p-2 rounded-lg border ${
+                    activeTextId === block.id
+                      ? "border-secondary bg-secondary/10"
+                      : "border-gray-200"
+                  }`}
+                >
+                  <input
+                    type="text"
+                    value={block.text}
+                    onChange={(e) => handleTextChange(block.id, e.target.value)}
+                    className="flex-1 border border-gray-200 rounded-lg px-2 py-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setActiveTextId((prev) =>
+                        prev === block.id ? null : block.id
+                      )
+                    }
+                    className={`text-[11px] px-2 py-1 rounded-full border ${
+                      activeTextId === block.id
+                        ? "border-secondary text-secondary"
+                        : "border-gray-300 text-gray-600"
+                    }`}
+                  >
+                    {activeTextId === block.id ? "Selected" : "Select"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveTextBlock(block.id)}
+                    className="text-rose-500 text-[11px] px-2 py-1 rounded-full border border-rose-200"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
           {/* If there is a generated image for the active character show Accept/Reject */}
-          {selectedCharacterId && generatedImages?.[selectedCharacterId] && (
+          {selectedCharacterId && selectedCharacter && generatedImages?.[selectedCharacter.id] && (
             <div className="absolute top-4 right-6 z-50 flex gap-2 items-center">
               <button
                 type="button"
                 onClick={() => {
-                  const gen = generatedImages[selectedCharacterId];
+                  if (!selectedCharacter) return;
+                  const gen = generatedImages[selectedCharacter.id];
                   if (!gen) return;
                   // apply generated image to the selected character (accept)
-                  dispatch(updateCharacterImage({ id: selectedCharacterId, png: gen }));
+                  dispatch(updateCharacterImage({ id: selectedCharacter.id, png: gen }));
                   // remove generated override
-                  dispatch(removeGeneratedCharacterImage(selectedCharacterId));
+                  dispatch(removeGeneratedCharacterImage(selectedCharacter.id));
                 }}
                 className="px-3 py-1 bg-emerald-500 text-white rounded-md shadow-sm hover:bg-emerald-600"
               >
@@ -798,8 +948,9 @@ const CustomizationPage = () => {
               <button
                 type="button"
                 onClick={() => {
+                  if (!selectedCharacter) return;
                   // reject generated image
-                  dispatch(removeGeneratedCharacterImage(selectedCharacterId));
+                  dispatch(removeGeneratedCharacterImage(selectedCharacter.id));
                 }}
                 className="px-3 py-1 bg-rose-500 text-white rounded-md shadow-sm hover:bg-rose-600"
               >
@@ -812,11 +963,11 @@ const CustomizationPage = () => {
         <div className="flex-1 flex flex-col items-center gap-6">
           <div className="flex gap-4 flex-wrap justify-center">
             {selectedCharacters.map((item) => {
-              const isSelected = selectedCharacterId === item.id;
-              const isVisible = customizations[item.id]?.visibleOnCanvas ?? false;
+              const isSelected = selectedCharacterId === item.uniqueId;
+              const isVisible = customizations[item.uniqueId]?.visibleOnCanvas ?? false;
               return (
                 <div
-                  key={item.id}
+                  key={item.uniqueId}
                   className={`cursor-pointer transition-all rounded-lg duration-200 ${
                     isSelected
                       ? "opacity-100 scale-105"
@@ -990,7 +1141,7 @@ const CustomizationPage = () => {
               </div>
               <div className="flex-1 space-y-4 max-h-[360px] overflow-y-auto pr-2">
                 {selectedCharacters.map((character) => {
-                  const cust = customizations[character.id];
+                  const cust = customizations[character.uniqueId];
                   const sectionEntries = customizationSections.map((section) => {
                     const data = cust?.[section.key];
                     return { ...section, data };
@@ -1055,6 +1206,26 @@ const CustomizationPage = () => {
                 })}
               </div>
             </div>
+            {textBlocks.length > 0 && (
+              <div className="space-y-2 border-t pt-4">
+                <h3 className="text-sm font-semibold text-gray-800">
+                  Text Layers
+                </h3>
+                <div className="grid gap-2 max-h-32 overflow-y-auto pr-1">
+                  {textBlocks.map((block) => (
+                    <div
+                      key={block.id}
+                      className="px-3 py-2 text-xs rounded-lg border border-gray-200 flex items-center justify-between"
+                    >
+                      <span className="text-gray-600">{block.text}</span>
+                      <span className="text-[10px] text-gray-400">
+                        ({Math.round(block.x)}, {Math.round(block.y)})
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {reviewModalData.usedFallback && (
               <p className="text-xs text-amber-600">
                 Snapshot fallback was used because the live canvas could not be captured.

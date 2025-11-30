@@ -109,7 +109,7 @@ const BackgroundSelectionPage = () => {
   };
 
   const activeCharacter: SelectedCharacter | null =
-    selectedCharacters.find((char) => char.id === activeCharacterId) ??
+    selectedCharacters.find((char) => char.uniqueId === activeCharacterId) ??
     selectedCharacters[0] ??
     null;
 
@@ -159,7 +159,7 @@ const BackgroundSelectionPage = () => {
     const target = charWithGenerated ?? selectedCharacters[0];
     if (target) {
       dispatch(setActiveCharacter(target));
-      dispatch(setCharacterVisible({ id: target.id, visible: true }));
+      dispatch(setCharacterVisible({ uniqueId: target.uniqueId, visible: true }));
     }
   }, [selectedCharacters, generatedImages, dispatch]);
 
@@ -254,7 +254,7 @@ const BackgroundSelectionPage = () => {
                           <img
                             src={combinedTemplate}
                             alt="Character preview"
-                            className="max-h-[460px] max-w-[90vw] object-contain drop-shadow-2xl pointer-events-none"
+                            className="max-h-[460px] max-w-[90vw] object-contain drop-shadow-2xl pointer-events-none rounded-3xl"
                           />
                         </div>
                       ) : activeCharacter ? (

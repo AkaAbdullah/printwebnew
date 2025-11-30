@@ -2,6 +2,7 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 
 export interface Character {
+  uniqueId: string;
   color: string;
   id: number;
   name: string;
@@ -32,9 +33,9 @@ interface CharacterCustomization {
 
 interface CustomizationState {
   customizations: {
-    [characterId: number]: CharacterCustomization;
+    [characterUniqueId: string]: CharacterCustomization;
   };
-  activeCharacterId: number | null;
+  activeCharacterId: string | null;
 }
 
 const initialState: CustomizationState = {
@@ -48,23 +49,23 @@ const customizationSlice = createSlice({
   reducers: {
     setActiveCharacter: (state, action: PayloadAction<Character>) => {
       const character = action.payload;
-      const id = character.id;
+      const uniqueId = character.uniqueId;
 
-      if (!state.customizations[id]) {
-        state.customizations[id] = {
+      if (!state.customizations[uniqueId]) {
+        state.customizations[uniqueId] = {
           character,
           head: { style: null, color: null, imageUrl: null, metaData: null },
           hair: { style: null, color: null, imageUrl: null, metaData: null },
           shirt: { style: null, color: null, imageUrl: null, metaData: null },
           jeans: { style: null, color: null, imageUrl: null, metaData: null },
           // position/scale left undefined to allow CanvasEditor to compute default values
-          zIndex: id,
+          zIndex: character.id,
         };
       } else {
-        state.customizations[id].character = character;
+        state.customizations[uniqueId].character = character;
       }
 
-      state.activeCharacterId = id;
+      state.activeCharacterId = uniqueId;
     },
 
     setHead: (
@@ -77,11 +78,11 @@ const customizationSlice = createSlice({
       }>
     ) => {
       if (state.activeCharacterId === null) return;
-      const id = state.activeCharacterId;
-      if (!state.customizations[id]) return;
+      const uniqueId = state.activeCharacterId;
+      if (!state.customizations[uniqueId]) return;
 
-      const customization = state.customizations[id].head;
-      state.customizations[id].head = {
+      const customization = state.customizations[uniqueId].head;
+      state.customizations[uniqueId].head = {
         style: action.payload.style ?? customization.style,
         color: action.payload.color ?? customization.color,
         imageUrl: action.payload.imageUrl ?? customization.imageUrl,
@@ -99,11 +100,11 @@ const customizationSlice = createSlice({
       }>
     ) => {
       if (state.activeCharacterId === null) return;
-      const id = state.activeCharacterId;
-      if (!state.customizations[id]) return;
+      const uniqueId = state.activeCharacterId;
+      if (!state.customizations[uniqueId]) return;
 
-      const customization = state.customizations[id].hair;
-      state.customizations[id].hair = {
+      const customization = state.customizations[uniqueId].hair;
+      state.customizations[uniqueId].hair = {
         style: action.payload.style ?? customization.style,
         color: action.payload.color ?? customization.color,
         imageUrl: action.payload.imageUrl ?? customization.imageUrl,
@@ -121,11 +122,11 @@ const customizationSlice = createSlice({
       }>
     ) => {
       if (state.activeCharacterId === null) return;
-      const id = state.activeCharacterId;
-      if (!state.customizations[id]) return;
+      const uniqueId = state.activeCharacterId;
+      if (!state.customizations[uniqueId]) return;
 
-      const customization = state.customizations[id].shirt;
-      state.customizations[id].shirt = {
+      const customization = state.customizations[uniqueId].shirt;
+      state.customizations[uniqueId].shirt = {
         style: action.payload.style ?? customization.style,
         color: action.payload.color ?? customization.color,
         imageUrl: action.payload.imageUrl ?? customization.imageUrl,
@@ -143,11 +144,11 @@ const customizationSlice = createSlice({
       }>
     ) => {
       if (state.activeCharacterId === null) return;
-      const id = state.activeCharacterId;
-      if (!state.customizations[id]) return;
+      const uniqueId = state.activeCharacterId;
+      if (!state.customizations[uniqueId]) return;
 
-      const customization = state.customizations[id].jeans;
-      state.customizations[id].jeans = {
+      const customization = state.customizations[uniqueId].jeans;
+      state.customizations[uniqueId].jeans = {
         style: action.payload.style ?? customization.style,
         color: action.payload.color ?? customization.color,
         imageUrl: action.payload.imageUrl ?? customization.imageUrl,
@@ -157,45 +158,45 @@ const customizationSlice = createSlice({
 
     setCharacterPosition: (
       state,
-      action: PayloadAction<{ id: number; x: number; y: number }>
+      action: PayloadAction<{ uniqueId: string; x: number; y: number }>
     ) => {
-      const { id, x, y } = action.payload;
-      if (!state.customizations[id]) return;
-      state.customizations[id].position = { x, y };
+      const { uniqueId, x, y } = action.payload;
+      if (!state.customizations[uniqueId]) return;
+      state.customizations[uniqueId].position = { x, y };
     },
 
     setCharacterScale: (
       state,
-      action: PayloadAction<{ id: number; scale: number }>
+      action: PayloadAction<{ uniqueId: string; scale: number }>
     ) => {
-      const { id, scale } = action.payload;
-      if (!state.customizations[id]) return;
-      state.customizations[id].scale = scale;
-      state.customizations[id].scaleNormalized = true;
+      const { uniqueId, scale } = action.payload;
+      if (!state.customizations[uniqueId]) return;
+      state.customizations[uniqueId].scale = scale;
+      state.customizations[uniqueId].scaleNormalized = true;
     },
 
     setCharacterZIndex: (
       state,
-      action: PayloadAction<{ id: number; zIndex: number }>
+      action: PayloadAction<{ uniqueId: string; zIndex: number }>
     ) => {
-      const { id, zIndex } = action.payload;
-      if (!state.customizations[id]) return;
-      state.customizations[id].zIndex = zIndex;
+      const { uniqueId, zIndex } = action.payload;
+      if (!state.customizations[uniqueId]) return;
+      state.customizations[uniqueId].zIndex = zIndex;
     },
     setCharacterVisible: (
       state,
-      action: PayloadAction<{ id: number; visible: boolean }>
+      action: PayloadAction<{ uniqueId: string; visible: boolean }>
     ) => {
-      const { id, visible } = action.payload;
-      if (!state.customizations[id]) return;
-      state.customizations[id].visibleOnCanvas = visible;
+      const { uniqueId, visible } = action.payload;
+      if (!state.customizations[uniqueId]) return;
+      state.customizations[uniqueId].visibleOnCanvas = visible;
     },
 
     clearCharacterCustomization: (
       state,
-      action: PayloadAction<{ id: number }>
+      action: PayloadAction<{ uniqueId: string }>
     ) => {
-      delete state.customizations[action.payload.id];
+      delete state.customizations[action.payload.uniqueId];
     },
     clearAllCustomizations: (state) => {
       state.customizations = {};

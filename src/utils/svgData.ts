@@ -14,7 +14,7 @@ import FourcharacterTemplate6 from "../assets/characterTemplates/4character6.png
 import FourcharacterTemplate7 from "../assets/characterTemplates/4character7.png";
 import FourcharacterTemplate8 from "../assets/characterTemplates/4character8.png";
 import FourcharacterTemplate9 from "../assets/characterTemplates/4character9.png";
-
+import pregnencyTemplate from "../assets/characterTemplates/PregnancySampleTemplate.png";
 // Heads
 import Character1Head1 from "../assets/customizationOptions/charter1Options/head/characterHeadOption1.svg";
 import Character1Head2 from "../assets/customizationOptions/charter1Options/head/characterHeadOption2.svg";
@@ -103,7 +103,7 @@ import sweater32 from "../assets/newfiles/sweater32.png";
 import sweater33 from "../assets/newfiles/sweater33.png";
 import sweater34 from "../assets/newfiles/sweater34.png";
 import testTemplate from "../assets/characters/finalFemale.png";
-
+import standingfullTemplate from "../assets/characterTemplates/fours.jpg";
 // Export all as data
 export const svgData = {
   girl,
@@ -111,7 +111,8 @@ export const svgData = {
   child,
   dog,
   testTemplate,
-
+  standingfullTemplate,
+  pregnencyTemplate,
   FourcharacterTemplate1,
   FourcharacterTemplate2,
   FourcharacterTemplate3,

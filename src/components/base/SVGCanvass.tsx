@@ -54,13 +54,13 @@ const SVGCanvas = ({ url, width = 400, height = 500 }: SVGCanvasProps) => {
       1
     );
 
-    const fittedWidth = naturalWidth * scale;
-    const fittedHeight = naturalHeight * scale;
+    // Use the smaller dimension to create a perfect circle
+    const smallerDimension = Math.min(naturalWidth * scale, naturalHeight * scale);
+    
+    const x = (width - smallerDimension) / 2;
+    const y = (height - smallerDimension) / 5;
 
-    const x = (width - fittedWidth) / 2;
-    const y = (height - fittedHeight) / 5;
-
-    return { x, y, width: fittedWidth, height: fittedHeight };
+    return { x, y, width: smallerDimension, height: smallerDimension };
   };
 
   const { x, y, width: fittedWidth, height: fittedHeight } = getFitSize();
@@ -83,6 +83,7 @@ const SVGCanvas = ({ url, width = 400, height = 500 }: SVGCanvasProps) => {
               width={fittedWidth}
               height={fittedHeight}
               draggable
+              cornerRadius={fittedWidth ? fittedWidth / 2 : 0}
               onClick={(e) => {
                 e.cancelBubble = true;
                 setSelected(true);

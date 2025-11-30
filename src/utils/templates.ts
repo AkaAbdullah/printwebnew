@@ -1,12 +1,14 @@
+import { mediaData } from "./mediaData";
 import { svgData } from "./svgData";
 
 export type Template = {
   id: number;
-  key: string;
-  titles: string[];
+  key?: string;
+  titles?: string[];
   template: string; // kept for backwards compat
   image: string; // new property (same as template url)
-  noOfCharactersInTemplate: number;
+  noOfCharactersInTemplate?: number;
+  characters?: string[];
 };
 
 export const templateList: Template[] = [
@@ -16,7 +18,7 @@ export const templateList: Template[] = [
     titles: ["girl"],
     template: svgData.testTemplate,
     image: svgData.testTemplate,
-    noOfCharactersInTemplate: 1,
+    noOfCharactersInTemplate: 4,
   },
   {
     id: 1,
@@ -81,6 +83,32 @@ export const templateList: Template[] = [
     titles: ["girl", "boy", "child"],
     template: svgData.FourcharacterTemplate9,
     image: svgData.FourcharacterTemplate9,
-    noOfCharactersInTemplate: 3,
+    noOfCharactersInTemplate: 4,
   },
+];
+
+export const newTemplateList: Template[] = [
+  {
+    id: 1,
+    template: svgData.FourcharacterTemplate2,
+    image: svgData.FourcharacterTemplate2,
+    characters: [
+      mediaData.newGirl,
+      mediaData.newMale,
+      mediaData.newChidl1,
+      mediaData.newChild2,
+      mediaData.dogPng,
+    ],
+  },
+
+  {
+    id: 2,
+    template: svgData.pregnencyTemplate,
+    image: svgData.pregnencyTemplate,
+    characters: [
+      mediaData.pgWomen,
+      mediaData.pgman,
+    ],
+  },
+
 ];

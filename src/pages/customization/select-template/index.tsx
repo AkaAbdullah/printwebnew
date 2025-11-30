@@ -6,7 +6,7 @@ import { useNavigate } from "react-router";
 import { setSelectedTemplate } from "../../../store/slices/templateSlice";
 import { clearAllCharacters } from "../../../store/slices/characterSlice";
 import { clearAllCustomizations } from "../../../store/slices/customizationSlice";
-import { templateList, type Template } from "../../../utils/templates";
+import { newTemplateList, type Template } from "../../../utils/templates";
 import { useEffect, useState } from "react";
 import OnboardingTooltip from "../../../components/base/OnboardingToolTip";
 
@@ -20,19 +20,15 @@ const index = () => {
   const { selectedProduct } = useSelector(
     (state: RootState) => state.product
   );
-  // no longer reading selectedCharacters here since template is chosen first
 
-  // Since user will select template first, show all templates
-  const matchingTemplates = templateList;
+  const matchingTemplates = newTemplateList;
 
   const handleNext = () => {
-    if (!selectedTemplate && !showTooltip) return; // guard
-    // After choosing a template, move to character selection page
+    if (!selectedTemplate && !showTooltip) return; 
     navigate("/customization/select-character");
   };
 
   const handlePick = (templateObj: Template) => {
-    // clear any previously selected characters when switching template
     dispatch(clearAllCharacters());
     dispatch(clearAllCustomizations());
     dispatch(setSelectedTemplate(templateObj));
@@ -101,12 +97,7 @@ const index = () => {
                       className="w-full h-full object-contain"
                     />
                   </div>
-                  <div className="absolute top-2 left-2 bg-white/90 text-xs font-semibold text-gray-700 px-2 py-1 rounded-full shadow">
-                    {item.noOfCharactersInTemplate}{" "}
-                    {item.noOfCharactersInTemplate === 1
-                      ? "Character"
-                      : "Characters"}
-                  </div>
+                 
                 </button>
               );
             })
@@ -117,7 +108,7 @@ const index = () => {
             </p>
           ) : null}
           {showTooltip &&
-            templateList.map((item) => {
+            newTemplateList.map((item) => {
               return (
                 <button
                   key={item.id}
@@ -132,12 +123,14 @@ const index = () => {
                       className="w-full h-full object-contain"
                     />
                   </div>
-                  <div className="absolute top-2 left-2 bg-white/90 text-xs font-semibold text-gray-700 px-2 py-1 rounded-full shadow">
-                    {item.noOfCharactersInTemplate}{" "}
-                    {item.noOfCharactersInTemplate === 1
-                      ? "Character"
-                      : "Characters"}
-                  </div>
+                  {item.characters && (
+                    <div className="absolute top-2 left-2 bg-white/90 text-xs font-semibold text-gray-700 px-2 py-1 rounded-full shadow">
+                      {item.characters.length}{" "}
+                      {item.characters.length === 1
+                        ? "Character"
+                        : "Characters"}
+                    </div>
+                  )}
                 </button>
               );
             })}
@@ -155,7 +148,7 @@ const index = () => {
               </div>
             )}
             {showTooltip && (
-              <img src={templateList[0].image} className="w-full" />
+              <img src={newTemplateList[0].image} className="w-full" />
             )}
           </div>
         </div>

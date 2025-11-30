@@ -61,6 +61,9 @@ import newGirl from "../assets/characters/finalFemale.png";
 import newChidl1 from "../assets/characters/finalchildgirl.png";
 import newChild2 from "../assets/characters/finalchildboy.png";
 import newbaby from "../assets/characters/finalbaby.png";
+import pgman from "../assets/characters/pgman.png"
+import pgWomen from "../assets/characters/pgwomen.png"
+
 
 export const mediaData = {
   landingImage1,
@@ -126,4 +129,6 @@ export const mediaData = {
   newChild2,
   newbaby,
   newMale,
+  pgWomen,
+  pgman,
 };
